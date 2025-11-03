@@ -7,14 +7,8 @@ flask==3.0.0
 flask-cors==4.0.0
 gunicorn==21.2.0
 
-# Database
-libsql-client==0.3.0
-
 # AI/ML
 openai==1.12.0
-
-# Email parsing (built-in libraries, no extra packages needed)
-# Používame štandardné Python moduly: imaplib, email
 
 # Data processing
 python-dateutil==2.8.2

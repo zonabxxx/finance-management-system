@@ -1,48 +1,81 @@
 #!/usr/bin/env python3
 """
-Flask Web UI - Dashboard pre správu financií (Railway compatible)
+Flask Web UI - Dashboard pre správu financií (Railway compatible - HTTP API)
 """
 
 from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS
 import os
+import requests
+import json
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-from libsql_client import create_client
 
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 
-# Turso database connection
-TURSO_DATABASE_URL = os.getenv('TURSO_DATABASE_URL')
-TURSO_AUTH_TOKEN = os.getenv('TURSO_AUTH_TOKEN')
+# Turso database connection via HTTP API
+TURSO_DATABASE_URL = os.getenv('TURSO_DATABASE_URL', '')
+TURSO_AUTH_TOKEN = os.getenv('TURSO_AUTH_TOKEN', '')
 
-def get_db_client():
-    """Get Turso database client"""
-    return create_client(
-        url=TURSO_DATABASE_URL,
-        auth_token=TURSO_AUTH_TOKEN
-    )
+# Convert libsql:// URL to https://
+if TURSO_DATABASE_URL.startswith('libsql://'):
+    TURSO_HTTP_URL = TURSO_DATABASE_URL.replace('libsql://', 'https://')
+else:
+    TURSO_HTTP_URL = TURSO_DATABASE_URL
 
 def turso_query(sql: str):
-    """Vykonanie SQL query v Turso databáze"""
+    """Vykonanie SQL query v Turso databáze cez HTTP API"""
     try:
-        client = get_db_client()
-        result = client.execute(sql)
+        response = requests.post(
+            f"{TURSO_HTTP_URL}/v2/pipeline",
+            headers={
+                "Authorization": f"Bearer {TURSO_AUTH_TOKEN}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "requests": [
+                    {"type": "execute", "stmt": {"sql": sql}}
+                ]
+            },
+            timeout=10
+        )
         
-        # Convert result to dict format
-        data = []
-        if result.rows:
-            columns = result.columns
-            for row in result.rows:
-                row_dict = {}
-                for i, col in enumerate(columns):
-                    row_dict[col] = row[i]
-                data.append(row_dict)
-        
-        return {"success": True, "data": data}
+        if response.status_code == 200:
+            result = response.json()
+            
+            # Parse response
+            if result.get('results') and len(result['results']) > 0:
+                query_result = result['results'][0]['response']['result']
+                
+                # Extract columns and rows
+                columns = [col['name'] for col in query_result.get('cols', [])]
+                rows = query_result.get('rows', [])
+                
+                # Convert to dict format
+                data = []
+                for row in rows:
+                    row_dict = {}
+                    for i, col_name in enumerate(columns):
+                        # Handle different value types
+                        value = row[i]
+                        if isinstance(value, dict):
+                            if 'type' in value:
+                                row_dict[col_name] = value.get('value')
+                            else:
+                                row_dict[col_name] = value
+                        else:
+                            row_dict[col_name] = value
+                    data.append(row_dict)
+                
+                return {"success": True, "data": data}
+            else:
+                return {"success": True, "data": []}
+        else:
+            print(f"❌ Database error: {response.status_code} - {response.text}")
+            return {"success": False, "error": f"HTTP {response.status_code}", "data": []}
         
     except Exception as e:
         print(f"❌ Database error: {e}")
