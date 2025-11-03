@@ -1,0 +1,102 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Finance Assistant API",
+    "description": "API pre ChatGPT GPT - finančné dáta, transakcie, účty",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://finance-management-system-production.up.railway.app"
+    }
+  ],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "summary": "Health check",
+        "operationId": "healthCheck",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/gpt/accounts/list": {
+      "get": {
+        "summary": "Zoznam bankových účtov",
+        "operationId": "listAccounts",
+        "responses": {
+          "200": {
+            "description": "Zoznam účtov"
+          }
+        }
+      }
+    },
+    "/api/gpt/transactions/summary": {
+      "get": {
+        "summary": "Zhrnutie transakcií",
+        "operationId": "getTransactionsSummary",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Zhrnutie"
+          }
+        }
+      }
+    },
+    "/api/gpt/transactions/recent": {
+      "get": {
+        "summary": "Posledné transakcie",
+        "operationId": "getRecentTransactions",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transakcie"
+          }
+        }
+      }
+    },
+    "/api/gpt/categories/list": {
+      "get": {
+        "summary": "Zoznam kategórií",
+        "operationId": "listCategories",
+        "responses": {
+          "200": {
+            "description": "Kategórie"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ]
+}
+
