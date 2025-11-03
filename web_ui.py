@@ -491,6 +491,160 @@ def health():
     return jsonify({"status": "healthy", "service": "finance-management"})
 
 
+# ==============================================================================
+# GPT API ENDPOINTS (for ChatGPT Actions)
+# ==============================================================================
+
+GPT_API_KEY = os.getenv("API_KEY", "tvoj-tajny-api-key-123456")
+
+
+def verify_gpt_api_key():
+    """Overenie API kľúča pre GPT"""
+    auth_header = request.headers.get('Authorization', '')
+    if auth_header.startswith('Bearer '):
+        token = auth_header[7:]
+        return token == GPT_API_KEY
+    return False
+
+
+@app.route('/api/health', methods=['GET'])
+def gpt_health_check():
+    """Health check pre GPT"""
+    return jsonify({
+        "status": "ok",
+        "timestamp": datetime.now().isoformat(),
+        "service": "finance-gpt-api"
+    })
+
+
+@app.route('/api/gpt/accounts/list', methods=['GET'])
+def gpt_get_accounts():
+    """Zoznam všetkých účtov pre GPT"""
+    
+    if not verify_gpt_api_key():
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    sql = """
+    SELECT 
+        AccountID,
+        IBAN,
+        AccountName,
+        BankName,
+        AccountType,
+        Currency
+    FROM Accounts
+    WHERE IsActive = 1
+    ORDER BY AccountName;
+    """
+    
+    result = turso_query(sql)
+    
+    if result["success"]:
+        return jsonify({
+            "accounts": result["data"]
+        })
+    else:
+        return jsonify({"error": result.get("error", "Query failed")}), 500
+
+
+@app.route('/api/gpt/transactions/summary', methods=['GET'])
+def gpt_get_transactions_summary():
+    """Zhrnutie transakcií pre GPT"""
+    
+    if not verify_gpt_api_key():
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    days = request.args.get('days', '30')
+    account_id = request.args.get('account_id', '')
+    
+    account_filter = f"AND AccountID = {account_id}" if account_id else ""
+    
+    sql = f"""
+    SELECT 
+        COUNT(*) as totalcount,
+        SUM(CASE WHEN Amount < 0 THEN Amount ELSE 0 END) as totalexpenses,
+        SUM(CASE WHEN Amount > 0 THEN Amount ELSE 0 END) as totalincome,
+        AVG(CASE WHEN Amount < 0 THEN Amount ELSE NULL END) as avgexpense
+    FROM Transactions
+    WHERE TransactionDate >= datetime('now', '-{days} days')
+    {account_filter};
+    """
+    
+    result = turso_query(sql)
+    
+    if result["success"] and result["data"]:
+        return jsonify({
+            "period_days": int(days),
+            "summary": result["data"][0] if result["data"] else {}
+        })
+    else:
+        return jsonify({"error": result.get("error", "No data")}), 500
+
+
+@app.route('/api/gpt/transactions/recent', methods=['GET'])
+def gpt_get_recent_transactions():
+    """Posledné transakcie pre GPT"""
+    
+    if not verify_gpt_api_key():
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    limit = request.args.get('limit', '10')
+    
+    sql = f"""
+    SELECT 
+        t.TransactionDate,
+        t.Amount,
+        t.Currency,
+        t.MerchantName,
+        t.Description,
+        COALESCE(c.Name, 'Nezaradené') as CategoryName,
+        COALESCE(a.AccountName, 'Nepriradený') as AccountName
+    FROM Transactions t
+    LEFT JOIN Categories c ON t.CategoryID = c.CategoryID
+    LEFT JOIN Accounts a ON t.AccountID = a.AccountID
+    ORDER BY t.TransactionDate DESC
+    LIMIT {limit};
+    """
+    
+    result = turso_query(sql)
+    
+    if result["success"]:
+        return jsonify({
+            "transactions": result["data"]
+        })
+    else:
+        return jsonify({"error": result.get("error", "Query failed")}), 500
+
+
+@app.route('/api/gpt/categories/list', methods=['GET'])
+def gpt_get_categories():
+    """Zoznam kategórií pre GPT"""
+    
+    if not verify_gpt_api_key():
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    sql = """
+    SELECT 
+        CategoryID,
+        Name,
+        Icon,
+        Color,
+        Description
+    FROM Categories
+    WHERE IsActive = 1
+    ORDER BY Name;
+    """
+    
+    result = turso_query(sql)
+    
+    if result["success"]:
+        return jsonify({
+            "categories": result["data"]
+        })
+    else:
+        return jsonify({"error": result.get("error", "Query failed")}), 500
+
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 3000))
     

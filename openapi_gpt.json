@@ -1,0 +1,366 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Finance Management API",
+    "description": "API pre prístup k finančným dátam - transakcie, účty, kategórie, štatistiky",
+    "version": "2.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://finance-management-system-production.up.railway.app"
+    }
+  ],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "summary": "Health check",
+        "description": "Kontrola či API beží",
+        "operationId": "healthCheck",
+        "responses": {
+          "200": {
+            "description": "API funguje",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/gpt/accounts/list": {
+      "get": {
+        "summary": "Zoznam bankových účtov",
+        "description": "Vráti všetky aktívne bankové účty používateľa",
+        "operationId": "listAccounts",
+        "responses": {
+          "200": {
+            "description": "Zoznam účtov",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accounts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "AccountID": {"type": "integer"},
+                          "IBAN": {"type": "string"},
+                          "AccountName": {"type": "string"},
+                          "BankName": {"type": "string"},
+                          "AccountType": {"type": "string"},
+                          "Currency": {"type": "string"}
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/accounts/{account_id}/summary": {
+      "get": {
+        "summary": "Zhrnutie pre konkrétny účet",
+        "description": "Detailné štatistiky pre daný bankový účet",
+        "operationId": "getAccountSummary",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "ID bankového účtu"
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 30
+            },
+            "description": "Počet dní spätne"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Štatistiky účtu",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "account": {"type": "object"},
+                    "statistics": {"type": "object"},
+                    "top_categories": {"type": "array"},
+                    "period_days": {"type": "integer"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/gpt/transactions/summary": {
+      "get": {
+        "summary": "Zhrnutie transakcií",
+        "description": "Celkové výdavky, príjmy, počet transakcií",
+        "operationId": "getTransactionsSummary",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 30
+            },
+            "description": "Počet dní spätne (default: 30)"
+          },
+          {
+            "name": "account_id",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Filtrovať podľa účtu (nepovinné)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Zhrnutie",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "period_days": {"type": "integer"},
+                    "summary": {
+                      "type": "object",
+                      "properties": {
+                        "total_count": {"type": "integer"},
+                        "total_expenses": {"type": "number"},
+                        "total_income": {"type": "number"},
+                        "avg_expense": {"type": "number"}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/gpt/transactions/recent": {
+      "get": {
+        "summary": "Posledné transakcie",
+        "description": "Najnovšie transakcie",
+        "operationId": "getRecentTransactions",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            },
+            "description": "Počet transakcií (default: 10)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Zoznam transakcií"
+          }
+        }
+      }
+    },
+    "/api/transactions/by-category": {
+      "get": {
+        "summary": "Výdavky podľa kategórií",
+        "description": "Zoskupené výdavky podľa kategórií",
+        "operationId": "getTransactionsByCategory",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 30
+            },
+            "description": "Počet dní spätne"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Výdavky podľa kategórií"
+          }
+        }
+      }
+    },
+    "/api/transactions/top-merchants": {
+      "get": {
+        "summary": "Top obchodníci",
+        "description": "Obchodníci kde míňaš najviac peňazí",
+        "operationId": "getTopMerchants",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 30
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Top obchodníci"
+          }
+        }
+      }
+    },
+    "/api/transactions/monthly": {
+      "get": {
+        "summary": "Mesačné štatistiky",
+        "description": "Výdavky a príjmy po mesiacoch",
+        "operationId": "getMonthlyStats",
+        "parameters": [
+          {
+            "name": "months",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 6
+            },
+            "description": "Počet mesiacov spätne"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mesačné štatistiky"
+          }
+        }
+      }
+    },
+    "/api/transactions/search": {
+      "get": {
+        "summary": "Vyhľadávanie transakcií",
+        "description": "Hľadaj transakcie podľa obchodníka, sumy alebo účtu",
+        "operationId": "searchTransactions",
+        "parameters": [
+          {
+            "name": "merchant",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Názov obchodníka (napr: BOLT, TESCO)"
+          },
+          {
+            "name": "min_amount",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            },
+            "description": "Minimálna suma"
+          },
+          {
+            "name": "max_amount",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            },
+            "description": "Maximálna suma"
+          },
+          {
+            "name": "account_id",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Filter podľa účtu"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Výsledky vyhľadávania"
+          }
+        }
+      }
+    },
+    "/api/gpt/categories/list": {
+      "get": {
+        "summary": "Zoznam kategórií",
+        "description": "Všetky dostupné kategórie výdavkov",
+        "operationId": "listCategories",
+        "responses": {
+          "200": {
+            "description": "Zoznam kategórií",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "categories": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "CategoryID": {"type": "integer"},
+                          "Name": {"type": "string"},
+                          "Icon": {"type": "string"},
+                          "Color": {"type": "string"},
+                          "Description": {"type": "string"}
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "API_KEY"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ]
+}
+
