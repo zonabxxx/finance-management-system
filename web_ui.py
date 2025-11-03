@@ -758,6 +758,7 @@ def gpt_search_transactions():
     max_amount = request.args.get('max_amount', '')
     account_id = request.args.get('account_id', '')
     category = request.args.get('category', '')
+    limit = request.args.get('limit', '50')  # Pridaný limit parameter
     
     conditions = []
     if merchant:
@@ -789,7 +790,7 @@ def gpt_search_transactions():
     LEFT JOIN Accounts a ON t.AccountID = a.AccountID
     WHERE {where_clause}
     ORDER BY t.TransactionDate DESC
-    LIMIT 50;
+    LIMIT {limit};
     """
     
     result = turso_query(sql)

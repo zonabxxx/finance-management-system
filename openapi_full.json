@@ -97,7 +97,8 @@
           {"name": "category", "in": "query", "schema": {"type": "string"}, "description": "Kategória"},
           {"name": "min_amount", "in": "query", "schema": {"type": "number"}, "description": "Min suma"},
           {"name": "max_amount", "in": "query", "schema": {"type": "number"}, "description": "Max suma"},
-          {"name": "account_id", "in": "query", "schema": {"type": "integer"}, "description": "Filter podľa účtu"}
+          {"name": "account_id", "in": "query", "schema": {"type": "integer"}, "description": "Filter podľa účtu"},
+          {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 50}, "description": "Počet výsledkov"}
         ],
         "responses": {"200": {"description": "Výsledky vyhľadávania"}}
       }
