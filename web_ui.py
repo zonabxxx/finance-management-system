@@ -59,15 +59,21 @@ def turso_query(sql: str):
                 for row in rows:
                     row_dict = {}
                     for i, col_name in enumerate(columns):
-                        # Handle different value types
-                        value = row[i]
-                        if isinstance(value, dict):
-                            if 'type' in value:
-                                row_dict[col_name] = value.get('value')
+                        # Handle Turso's value format: {"type": "integer", "value": "123"}
+                        cell = row[i]
+                        if isinstance(cell, dict) and 'value' in cell:
+                            # Extract value from dict
+                            value = cell['value']
+                            # Convert string numbers to actual numbers
+                            if cell.get('type') == 'integer':
+                                row_dict[col_name] = int(value) if value is not None else None
+                            elif cell.get('type') == 'real':
+                                row_dict[col_name] = float(value) if value is not None else None
                             else:
                                 row_dict[col_name] = value
                         else:
-                            row_dict[col_name] = value
+                            # Direct value
+                            row_dict[col_name] = cell
                     data.append(row_dict)
                 
                 return {"success": True, "data": data}
