@@ -251,19 +251,19 @@
         // Načítanie štatistík
         async function loadDashboard() {
             try {
-                // Základné štatistiky
-                const statsResponse = await fetch('/api/dashboard/stats?days=30');
+                // Základné štatistiky - použijeme správny endpoint
+                const statsResponse = await fetch('/api/summary');
                 const statsData = await statsResponse.json();
                 
                 console.log('Stats data:', statsData);
                 
-                // Štatistiky - teraz sú v štruktúrovanom formáte
+                // Štatistiky - použijeme správny formát z API
                 if (statsData.summary) {
-                    // Turso vracia názvy stĺpcov ako "TOTAL TRANSACTIONS" s medzerami
-                    const totalTransactions = statsData.summary['TOTAL TRANSACTIONS'] || statsData.summary.total_transactions || '0';
-                    const totalExpenses = statsData.summary['TOTAL EXPENSES'] || statsData.summary.total_expenses || 0;
-                    const totalIncome = statsData.summary['TOTAL INCOME'] || statsData.summary.total_income || 0;
-                    const avgExpense = statsData.summary['AVG EXPENSE'] || statsData.summary.avg_expense || 0;
+                    const summary = statsData.summary;
+                    const totalTransactions = summary.total_transactions || 0;
+                    const totalExpenses = summary.total_expenses || 0;
+                    const totalIncome = summary.total_income || 0;
+                    const avgExpense = summary.avg_expense || 0;
                     
                     document.getElementById('total-transactions').textContent = totalTransactions;
                     document.getElementById('total-expenses').textContent = parseFloat(totalExpenses).toFixed(2) + ' €';
@@ -271,41 +271,43 @@
                     document.getElementById('avg-expense').textContent = parseFloat(avgExpense).toFixed(2) + ' €';
                 }
 
-                // Posledné transakcie - teraz sú v štruktúrovanom formáte
-                if (statsData.recent_transactions && statsData.recent_transactions.length > 0) {
+                // Top merchants
+                if (statsData.top_merchants && statsData.top_merchants.length > 0) {
                     const transactionsList = document.getElementById('transactions-list');
                     transactionsList.innerHTML = '';
                     
-                    statsData.recent_transactions.forEach(transaction => {
-                        const date = transaction.TransactionDate || transaction.TRANSACTIONDATE || '';
-                        const amount = parseFloat(transaction.Amount || transaction.AMOUNT || 0);
-                        const currency = transaction.Currency || transaction.CURRENCY || 'EUR';
-                        const merchant = transaction.MerchantName || transaction.MERCHANTNAME || 'Neznámy';
-                        const method = transaction.PaymentMethod || transaction.PAYMENTMETHOD || 'N/A';
+                    statsData.top_merchants.slice(0, 5).forEach(merchant => {
+                        const name = merchant.MerchantName || 'Neznámy';
+                        const total = parseFloat(merchant.total || 0);
+                        const count = merchant.count || 0;
                         
                         const item = document.createElement('div');
                         item.className = 'transaction-item';
                         item.innerHTML = `
                             <div class="transaction-info">
-                                <div class="transaction-merchant">${merchant}</div>
-                                <div class="transaction-date">${date} • ${method}</div>
+                                <div class="transaction-merchant">${name}</div>
+                                <div class="transaction-date">${count}x transakcií</div>
                             </div>
-                            <div class="transaction-amount ${amount < 0 ? 'negative' : 'positive'}">
-                                ${amount.toFixed(2)} ${currency}
+                            <div class="transaction-amount negative">
+                                ${total.toFixed(2)} €
                             </div>
                         `;
                         transactionsList.appendChild(item);
                     });
                 }
 
-                // Grafy
-                const chartResponse = await fetch('/api/dashboard/chart-data');
-                const chartData = await chartResponse.json();
+                // Grafy - používame dáta z /api/summary
+                if (statsData.monthly && statsData.monthly.length > 0) {
+                    const months = statsData.monthly.map(m => m.month);
+                    const expenses = statsData.monthly.map(m => parseFloat(m.expenses || 0));
+                    const income = statsData.monthly.map(m => parseFloat(m.income || 0));
+                    
+                    createMonthlyChart({ months, expenses, income });
+                }
                 
-                console.log('Chart data:', chartData);
-                
-                createMonthlyChart(chartData.monthly);
-                createCategoryChart(chartData.category_pie);
+                if (statsData.category_pie && statsData.category_pie.length > 0) {
+                    createCategoryChart(statsData.category_pie);
+                }
 
             } catch (error) {
                 console.error('Chyba pri načítaní dát:', error);
@@ -313,31 +315,20 @@
         }
 
         function createMonthlyChart(data) {
-            if (!data || data.length === 0) return;
-
-            const labels = [];
-            const expenses = [];
-            const income = [];
-
-            data.forEach(row => {
-                // Turso vracia názvy s malými písmenami alebo uppercase
-                labels.push(row.month || row.MONTH);
-                expenses.push(parseFloat(row.expenses || row.EXPENSES || 0));
-                income.push(parseFloat(row.income || row.INCOME || 0));
-            });
+            if (!data || !data.months || data.months.length === 0) return;
 
             const ctx = document.getElementById('monthlyChart').getContext('2d');
             new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: labels,
+                    labels: data.months,
                     datasets: [{
                         label: 'Výdavky',
-                        data: expenses,
+                        data: data.expenses,
                         backgroundColor: 'rgba(239, 68, 68, 0.8)',
                     }, {
                         label: 'Príjmy',
-                        data: income,
+                        data: data.income,
                         backgroundColor: 'rgba(16, 185, 129, 0.8)',
                     }]
                 },
