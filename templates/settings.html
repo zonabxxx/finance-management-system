@@ -369,26 +369,118 @@
 
             if (!account) return;
 
-            const newName = prompt('Nový názov účtu:', account.AccountName || account.ACCOUNTNAME);
-            if (!newName) return;
+            const currentName = account.AccountName || account.ACCOUNTNAME || '';
+            const currentBank = account.BankName || account.BANKNAME || 'Tatra banka';
+            const currentType = account.AccountType || account.ACCOUNTTYPE || 'Osobný účet';
 
-            try {
-                const response = await fetch(`/api/accounts/update/${id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: newName })
-                });
+            // Vytvoríme vlastný dialog s viacerými poliami
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
+            `;
 
-                if (response.ok) {
-                    alert('✅ Účet aktualizovaný!');
-                    loadAccounts();
-                } else {
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 15px; padding: 30px; max-width: 500px; width: 90%;">
+                    <h2 style="margin-bottom: 20px; color: #667eea;">✏️ Upraviť účet</h2>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600;">Názov účtu:</label>
+                        <input type="text" id="edit-name" value="${currentName}" 
+                               style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 1em;">
+                    </div>
+
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600;">Banka:</label>
+                        <select id="edit-bank" 
+                                style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 1em;">
+                            <option value="Tatra banka" ${currentBank === 'Tatra banka' ? 'selected' : ''}>Tatra banka</option>
+                            <option value="Slovenská sporiteľňa" ${currentBank === 'Slovenská sporiteľňa' ? 'selected' : ''}>Slovenská sporiteľňa</option>
+                            <option value="VÚB" ${currentBank === 'VÚB' ? 'selected' : ''}>VÚB</option>
+                            <option value="ČSOB" ${currentBank === 'ČSOB' ? 'selected' : ''}>ČSOB</option>
+                            <option value="UniCredit Bank" ${currentBank === 'UniCredit Bank' ? 'selected' : ''}>UniCredit Bank</option>
+                            <option value="mBank" ${currentBank === 'mBank' ? 'selected' : ''}>mBank</option>
+                            <option value="Poštová banka" ${currentBank === 'Poštová banka' ? 'selected' : ''}>Poštová banka</option>
+                            <option value="Iná" ${currentBank === 'Iná' ? 'selected' : ''}>Iná</option>
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600;">Typ účtu:</label>
+                        <select id="edit-type" 
+                                style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 1em;">
+                            <option value="Osobný účet" ${currentType === 'Osobný účet' ? 'selected' : ''}>Osobný účet</option>
+                            <option value="Firemný účet" ${currentType === 'Firemný účet' ? 'selected' : ''}>Firemný účet</option>
+                            <option value="Spoločný účet" ${currentType === 'Spoločný účet' ? 'selected' : ''}>Spoločný účet</option>
+                            <option value="Sporenie" ${currentType === 'Sporenie' ? 'selected' : ''}>Sporenie</option>
+                        </select>
+                    </div>
+
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="this.closest('div[style*=fixed]').remove()" 
+                                style="flex: 1; padding: 12px; background: #e5e7eb; color: #333; border: none; border-radius: 10px; font-weight: 600; cursor: pointer;">
+                            Zrušiť
+                        </button>
+                        <button id="save-edit-btn" 
+                                style="flex: 1; padding: 12px; background: #667eea; color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer;">
+                            💾 Uložiť
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            // Handler pre uloženie
+            document.getElementById('save-edit-btn').onclick = async () => {
+                const newName = document.getElementById('edit-name').value.trim();
+                const newBank = document.getElementById('edit-bank').value;
+                const newType = document.getElementById('edit-type').value;
+
+                if (!newName) {
+                    alert('⚠️ Názov účtu nemôže byť prázdny');
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/api/accounts/update/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            name: newName,
+                            bank: newBank,
+                            type: newType
+                        })
+                    });
+
+                    if (response.ok) {
+                        alert('✅ Účet aktualizovaný!');
+                        modal.remove();
+                        loadAccounts();
+                    } else {
+                        const error = await response.json();
+                        alert('❌ ' + (error.error || 'Chyba pri aktualizácii účtu'));
+                    }
+                } catch (error) {
+                    console.error('Chyba:', error);
                     alert('❌ Chyba pri aktualizácii účtu');
                 }
-            } catch (error) {
-                console.error('Chyba:', error);
-                alert('❌ Chyba pri aktualizácii účtu');
-            }
+            };
+
+            // Zavrieť modal pri kliknutí mimo
+            modal.onclick = (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            };
         }
 
         async function deleteAccount(id, name) {

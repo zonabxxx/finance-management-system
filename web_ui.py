@@ -174,13 +174,24 @@ def update_account(account_id):
     """Aktualizácia účtu"""
     data = request.json
     name = data.get('name', '').replace("'", "''")
+    bank = data.get('bank', '').replace("'", "''")
+    acc_type = data.get('type', '').replace("'", "''")
     
     if not name:
         return jsonify({"error": "Názov je povinný"}), 400
     
+    # Zostavíme UPDATE query s viacerými poliami
+    updates = [f"AccountName = '{name}'"]
+    
+    if bank:
+        updates.append(f"BankName = '{bank}'")
+    
+    if acc_type:
+        updates.append(f"AccountType = '{acc_type}'")
+    
     sql = f"""
     UPDATE Accounts 
-    SET AccountName = '{name}'
+    SET {', '.join(updates)}
     WHERE AccountID = {account_id};
     """
     
