@@ -74,6 +74,9 @@ def turso_query(sql: str):
                         else:
                             # Direct value
                             row_dict[col_name] = cell
+                        
+                        # Also add lowercase version for compatibility
+                        row_dict[col_name.lower()] = row_dict[col_name]
                     data.append(row_dict)
                 
                 return {"success": True, "data": data}
