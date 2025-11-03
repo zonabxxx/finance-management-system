@@ -109,6 +109,106 @@ def categories_page():
     return render_template('categories.html')
 
 
+@app.route('/settings')
+def settings_page():
+    """Stránka s nastaveniami"""
+    return render_template('settings.html')
+
+
+@app.route('/api/accounts/list', methods=['GET'])
+def accounts_list():
+    """Zoznam všetkých účtov"""
+    sql = """
+    SELECT 
+        AccountID,
+        IBAN,
+        AccountName,
+        BankName,
+        AccountType,
+        Currency,
+        Color,
+        IsActive
+    FROM Accounts
+    WHERE IsActive = 1
+    ORDER BY AccountName;
+    """
+    
+    result = turso_query(sql)
+    
+    return jsonify({
+        "accounts": result["data"] if result["success"] else []
+    })
+
+
+@app.route('/api/accounts/create', methods=['POST'])
+def create_account():
+    """Vytvorenie nového účtu"""
+    data = request.json
+    iban = data.get('iban', '').upper().replace(' ', '')
+    name = data.get('name', '').replace("'", "''")
+    bank = data.get('bank', 'Tatra banka').replace("'", "''")
+    acc_type = data.get('type', 'Osobný účet').replace("'", "''")
+    
+    if not iban or not name:
+        return jsonify({"error": "IBAN a názov sú povinné"}), 400
+    
+    # Validácia IBAN
+    if not iban.startswith('SK') or len(iban) != 24:
+        return jsonify({"error": "Neplatný slovenský IBAN (musí začínať SK a mať 24 znakov)"}), 400
+    
+    sql = f"""
+    INSERT INTO Accounts (IBAN, AccountName, BankName, AccountType)
+    VALUES ('{iban}', '{name}', '{bank}', '{acc_type}');
+    """
+    
+    result = turso_query(sql)
+    
+    if result["success"]:
+        return jsonify({"success": True, "message": "Účet vytvorený"})
+    else:
+        return jsonify({"error": result.get("error", "Chyba pri vytváraní účtu")}), 500
+
+
+@app.route('/api/accounts/update/<int:account_id>', methods=['PUT'])
+def update_account(account_id):
+    """Aktualizácia účtu"""
+    data = request.json
+    name = data.get('name', '').replace("'", "''")
+    
+    if not name:
+        return jsonify({"error": "Názov je povinný"}), 400
+    
+    sql = f"""
+    UPDATE Accounts 
+    SET AccountName = '{name}'
+    WHERE AccountID = {account_id};
+    """
+    
+    result = turso_query(sql)
+    
+    if result["success"]:
+        return jsonify({"success": True, "message": "Účet aktualizovaný"})
+    else:
+        return jsonify({"error": result.get("error", "Chyba")}), 500
+
+
+@app.route('/api/accounts/delete/<int:account_id>', methods=['DELETE'])
+def delete_account(account_id):
+    """Vymazanie účtu (soft delete)"""
+    sql = f"""
+    UPDATE Accounts 
+    SET IsActive = 0
+    WHERE AccountID = {account_id};
+    """
+    
+    result = turso_query(sql)
+    
+    if result["success"]:
+        return jsonify({"success": True, "message": "Účet vymazaný"})
+    else:
+        return jsonify({"error": result.get("error", "Chyba")}), 500
+
+
 @app.route('/api/categories/list', methods=['GET'])
 def categories_list():
     """Zoznam všetkých kategórií"""
