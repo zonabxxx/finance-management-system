@@ -643,6 +643,236 @@ def gpt_get_categories():
         return jsonify({"error": result.get("error", "Query failed")}), 500
 
 
+@app.route('/api/gpt/transactions/by-category', methods=['GET'])
+def gpt_get_transactions_by_category():
+    """Výdavky podľa kategórií pre GPT"""
+    
+    if not verify_gpt_api_key():
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    days = request.args.get('days', '30')
+    
+    sql = f"""
+    SELECT 
+        c.Name as categoryname,
+        c.Icon as categoryicon,
+        COUNT(t.TransactionID) as transactioncount,
+        SUM(t.Amount) as totalamount,
+        AVG(t.Amount) as avgamount
+    FROM Transactions t
+    LEFT JOIN Categories c ON t.CategoryID = c.CategoryID
+    WHERE t.TransactionDate >= datetime('now', '-{days} days')
+        AND t.Amount < 0
+    GROUP BY c.CategoryID, c.Name, c.Icon
+    ORDER BY totalamount ASC;
+    """
+    
+    result = turso_query(sql)
+    
+    if result["success"]:
+        return jsonify({
+            "period_days": int(days),
+            "categories": result["data"]
+        })
+    else:
+        return jsonify({"error": result.get("error", "Query failed")}), 500
+
+
+@app.route('/api/gpt/transactions/top-merchants', methods=['GET'])
+def gpt_get_top_merchants():
+    """Top obchodníci pre GPT"""
+    
+    if not verify_gpt_api_key():
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    limit = request.args.get('limit', '10')
+    days = request.args.get('days', '30')
+    
+    sql = f"""
+    SELECT 
+        MerchantName as merchantname,
+        COUNT(*) as transactioncount,
+        SUM(Amount) as totalspent,
+        AVG(Amount) as avgspent
+    FROM Transactions
+    WHERE TransactionDate >= datetime('now', '-{days} days')
+        AND Amount < 0
+        AND MerchantName IS NOT NULL
+    GROUP BY MerchantName
+    ORDER BY totalspent ASC
+    LIMIT {limit};
+    """
+    
+    result = turso_query(sql)
+    
+    if result["success"]:
+        return jsonify({
+            "period_days": int(days),
+            "top_merchants": result["data"]
+        })
+    else:
+        return jsonify({"error": result.get("error", "Query failed")}), 500
+
+
+@app.route('/api/gpt/transactions/monthly', methods=['GET'])
+def gpt_get_monthly_stats():
+    """Mesačné štatistiky pre GPT"""
+    
+    if not verify_gpt_api_key():
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    months = request.args.get('months', '6')
+    
+    sql = f"""
+    SELECT 
+        strftime('%Y-%m', TransactionDate) as month,
+        COUNT(*) as transactioncount,
+        SUM(CASE WHEN Amount < 0 THEN Amount ELSE 0 END) as expenses,
+        SUM(CASE WHEN Amount > 0 THEN Amount ELSE 0 END) as income
+    FROM Transactions
+    WHERE TransactionDate >= datetime('now', '-{months} months')
+    GROUP BY month
+    ORDER BY month DESC;
+    """
+    
+    result = turso_query(sql)
+    
+    if result["success"]:
+        return jsonify({
+            "period_months": int(months),
+            "monthly_data": result["data"]
+        })
+    else:
+        return jsonify({"error": result.get("error", "Query failed")}), 500
+
+
+@app.route('/api/gpt/transactions/search', methods=['GET'])
+def gpt_search_transactions():
+    """Vyhľadávanie transakcií pre GPT"""
+    
+    if not verify_gpt_api_key():
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    merchant = request.args.get('merchant', '')
+    min_amount = request.args.get('min_amount', '')
+    max_amount = request.args.get('max_amount', '')
+    account_id = request.args.get('account_id', '')
+    category = request.args.get('category', '')
+    
+    conditions = []
+    if merchant:
+        conditions.append(f"t.MerchantName LIKE '%{merchant}%'")
+    if min_amount:
+        conditions.append(f"t.Amount >= {min_amount}")
+    if max_amount:
+        conditions.append(f"t.Amount <= {max_amount}")
+    if account_id:
+        conditions.append(f"t.AccountID = {account_id}")
+    if category:
+        conditions.append(f"c.Name LIKE '%{category}%'")
+    
+    where_clause = " AND ".join(conditions) if conditions else "1=1"
+    
+    sql = f"""
+    SELECT 
+        t.TransactionID,
+        t.TransactionDate,
+        t.Amount,
+        t.Currency,
+        t.MerchantName,
+        t.Description,
+        COALESCE(c.Name, 'Nezaradené') as CategoryName,
+        COALESCE(c.Icon, '📦') as CategoryIcon,
+        COALESCE(a.AccountName, 'Nepriradený') as AccountName
+    FROM Transactions t
+    LEFT JOIN Categories c ON t.CategoryID = c.CategoryID
+    LEFT JOIN Accounts a ON t.AccountID = a.AccountID
+    WHERE {where_clause}
+    ORDER BY t.TransactionDate DESC
+    LIMIT 50;
+    """
+    
+    result = turso_query(sql)
+    
+    if result["success"]:
+        return jsonify({
+            "results": result["data"],
+            "count": len(result["data"])
+        })
+    else:
+        return jsonify({"error": result.get("error", "Query failed")}), 500
+
+
+@app.route('/api/gpt/accounts/<int:account_id>/summary', methods=['GET'])
+def gpt_get_account_summary(account_id):
+    """Detailný prehľad účtu pre GPT"""
+    
+    if not verify_gpt_api_key():
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    days = request.args.get('days', '30')
+    
+    # Info o účte
+    account_sql = f"""
+    SELECT 
+        AccountID,
+        IBAN,
+        AccountName,
+        BankName,
+        AccountType,
+        Currency
+    FROM Accounts
+    WHERE AccountID = {account_id};
+    """
+    
+    account_result = turso_query(account_sql)
+    
+    if not account_result["success"] or not account_result["data"]:
+        return jsonify({"error": "Account not found"}), 404
+    
+    # Štatistiky transakcií
+    stats_sql = f"""
+    SELECT 
+        COUNT(*) as totalcount,
+        SUM(CASE WHEN Amount < 0 THEN Amount ELSE 0 END) as totalexpenses,
+        SUM(CASE WHEN Amount > 0 THEN Amount ELSE 0 END) as totalincome,
+        AVG(CASE WHEN Amount < 0 THEN Amount ELSE NULL END) as avgexpense,
+        MIN(TransactionDate) as firsttransaction,
+        MAX(TransactionDate) as lasttransaction
+    FROM Transactions
+    WHERE AccountID = {account_id}
+        AND TransactionDate >= datetime('now', '-{days} days');
+    """
+    
+    stats_result = turso_query(stats_sql)
+    
+    # Top kategórie
+    categories_sql = f"""
+    SELECT 
+        c.Name as categoryname,
+        c.Icon as categoryicon,
+        COUNT(t.TransactionID) as transactioncount,
+        SUM(t.Amount) as totalamount
+    FROM Transactions t
+    LEFT JOIN Categories c ON t.CategoryID = c.CategoryID
+    WHERE t.AccountID = {account_id}
+        AND t.TransactionDate >= datetime('now', '-{days} days')
+        AND t.Amount < 0
+    GROUP BY c.CategoryID
+    ORDER BY totalamount ASC
+    LIMIT 5;
+    """
+    
+    categories_result = turso_query(categories_sql)
+    
+    return jsonify({
+        "account": account_result["data"][0] if account_result["data"] else {},
+        "statistics": stats_result["data"][0] if stats_result["success"] and stats_result["data"] else {},
+        "top_categories": categories_result["data"] if categories_result["success"] else [],
+        "period_days": int(days)
+    })
+
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 3000))
     

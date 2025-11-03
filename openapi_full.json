@@ -1,0 +1,114 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Finance Assistant API - Kompletná",
+    "description": "Plná kontrola financií cez ChatGPT",
+    "version": "2.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://finance-management-system-production.up.railway.app"
+    }
+  ],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "operationId": "healthCheck",
+        "summary": "Health check",
+        "responses": {"200": {"description": "OK"}}
+      }
+    },
+    "/api/gpt/accounts/list": {
+      "get": {
+        "operationId": "listAccounts",
+        "summary": "Zoznam bankových účtov",
+        "responses": {"200": {"description": "Zoznam účtov"}}
+      }
+    },
+    "/api/gpt/accounts/{account_id}/summary": {
+      "get": {
+        "operationId": "getAccountSummary",
+        "summary": "Detailný prehľad konkrétneho účtu",
+        "parameters": [
+          {"name": "account_id", "in": "path", "required": true, "schema": {"type": "integer"}},
+          {"name": "days", "in": "query", "schema": {"type": "integer", "default": 30}}
+        ],
+        "responses": {"200": {"description": "Prehľad účtu"}}
+      }
+    },
+    "/api/gpt/transactions/summary": {
+      "get": {
+        "operationId": "getTransactionsSummary",
+        "summary": "Celkové zhrnutie - výdavky, príjmy, počet",
+        "parameters": [
+          {"name": "days", "in": "query", "schema": {"type": "integer", "default": 30}},
+          {"name": "account_id", "in": "query", "schema": {"type": "integer"}}
+        ],
+        "responses": {"200": {"description": "Zhrnutie"}}
+      }
+    },
+    "/api/gpt/transactions/recent": {
+      "get": {
+        "operationId": "getRecentTransactions",
+        "summary": "Posledné transakcie s detailami",
+        "parameters": [
+          {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 10}}
+        ],
+        "responses": {"200": {"description": "Transakcie"}}
+      }
+    },
+    "/api/gpt/transactions/by-category": {
+      "get": {
+        "operationId": "getTransactionsByCategory",
+        "summary": "Výdavky zoskupené podľa kategórií",
+        "parameters": [
+          {"name": "days", "in": "query", "schema": {"type": "integer", "default": 30}}
+        ],
+        "responses": {"200": {"description": "Výdavky podľa kategórií"}}
+      }
+    },
+    "/api/gpt/transactions/top-merchants": {
+      "get": {
+        "operationId": "getTopMerchants",
+        "summary": "Top obchodníci kde míňaš najviac",
+        "parameters": [
+          {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 10}},
+          {"name": "days", "in": "query", "schema": {"type": "integer", "default": 30}}
+        ],
+        "responses": {"200": {"description": "Top obchodníci"}}
+      }
+    },
+    "/api/gpt/transactions/monthly": {
+      "get": {
+        "operationId": "getMonthlyStats",
+        "summary": "Mesačné štatistiky - trendy výdavkov",
+        "parameters": [
+          {"name": "months", "in": "query", "schema": {"type": "integer", "default": 6}}
+        ],
+        "responses": {"200": {"description": "Mesačné dáta"}}
+      }
+    },
+    "/api/gpt/transactions/search": {
+      "get": {
+        "operationId": "searchTransactions",
+        "summary": "Vyhľadávanie transakcií podľa filtrov",
+        "parameters": [
+          {"name": "merchant", "in": "query", "schema": {"type": "string"}, "description": "Názov obchodníka"},
+          {"name": "category", "in": "query", "schema": {"type": "string"}, "description": "Kategória"},
+          {"name": "min_amount", "in": "query", "schema": {"type": "number"}, "description": "Min suma"},
+          {"name": "max_amount", "in": "query", "schema": {"type": "number"}, "description": "Max suma"},
+          {"name": "account_id", "in": "query", "schema": {"type": "integer"}, "description": "Filter podľa účtu"}
+        ],
+        "responses": {"200": {"description": "Výsledky vyhľadávania"}}
+      }
+    },
+    "/api/gpt/categories/list": {
+      "get": {
+        "operationId": "listCategories",
+        "summary": "Zoznam všetkých kategórií výdavkov",
+        "responses": {"200": {"description": "Kategórie"}}
+      }
+    }
+  }
+}
+
