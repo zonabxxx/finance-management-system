@@ -246,17 +246,28 @@ def update_transaction_category(transaction_id):
 def get_summary():
     """API endpoint pre zhrnutie štatistík"""
     
-    # Celkové štatistiky
+    # Celkové štatistiky - používame aliasy BEZ podčiarkovníkov
     summary_sql = """
     SELECT 
-        COUNT(*) as total_transactions,
-        SUM(CASE WHEN Amount < 0 THEN ABS(Amount) ELSE 0 END) as total_expenses,
-        SUM(CASE WHEN Amount > 0 THEN Amount ELSE 0 END) as total_income,
-        AVG(CASE WHEN Amount < 0 THEN ABS(Amount) ELSE NULL END) as avg_expense
+        COUNT(*) as totaltransactions,
+        SUM(CASE WHEN Amount < 0 THEN ABS(Amount) ELSE 0 END) as totalexpenses,
+        SUM(CASE WHEN Amount > 0 THEN Amount ELSE 0 END) as totalincome,
+        AVG(CASE WHEN Amount < 0 THEN ABS(Amount) ELSE NULL END) as avgexpense
     FROM Transactions;
     """
     
     summary_result = turso_query(summary_sql)
+    
+    # Normalize the result
+    summary = {}
+    if summary_result["success"] and summary_result["data"]:
+        raw = summary_result["data"][0]
+        summary = {
+            "total_transactions": raw.get('totaltransactions') or raw.get('TOTALTRANSACTIONS') or 0,
+            "total_expenses": raw.get('totalexpenses') or raw.get('TOTALEXPENSES') or 0,
+            "total_income": raw.get('totalincome') or raw.get('TOTALINCOME') or 0,
+            "avg_expense": raw.get('avgexpense') or raw.get('AVGEXPENSE') or 0
+        }
     
     # Top merchants
     merchants_sql = """
@@ -318,7 +329,7 @@ def get_summary():
     category_pie_result = turso_query(category_pie_sql)
     
     return jsonify({
-        "summary": summary_result["data"][0] if summary_result["success"] and summary_result["data"] else {},
+        "summary": summary,
         "top_merchants": merchants_result["data"] if merchants_result["success"] else [],
         "by_category": category_result["data"] if category_result["success"] else [],
         "monthly": monthly_result["data"] if monthly_result["success"] else [],
