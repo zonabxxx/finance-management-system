@@ -1,0 +1,171 @@
+{
+  "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "$connections": {
+      "defaultValue": {},
+      "type": "Object"
+    },
+    "functionAppUrl": {
+      "defaultValue": "https://your-function-app.azurewebsites.net/api/process-email",
+      "type": "String"
+    },
+    "functionAppKey": {
+      "defaultValue": "your-function-key",
+      "type": "String"
+    }
+  },
+  "triggers": {
+    "When_a_new_email_arrives": {
+      "type": "ApiConnection",
+      "inputs": {
+        "host": {
+          "connection": {
+            "name": "@parameters('$connections')['office365']['connectionId']"
+          }
+        },
+        "method": "get",
+        "path": "/v2/Mail/OnNewEmail",
+        "queries": {
+          "folderPath": "Inbox",
+          "importance": "Any",
+          "fetchOnlyWithAttachment": false,
+          "includeAttachments": false,
+          "subjectFilter": "Pohyby na účte"
+        }
+      },
+      "splitOn": "@triggerBody()?['value']"
+    }
+  },
+  "actions": {
+    "Parse_Email_Body": {
+      "type": "Compose",
+      "inputs": {
+        "body": "@triggerBody()?['body']",
+        "subject": "@triggerBody()?['subject']",
+        "from": "@triggerBody()?['from']",
+        "receivedDateTime": "@triggerBody()?['receivedDateTime']"
+      },
+      "runAfter": {}
+    },
+    "Call_Azure_Function": {
+      "type": "Http",
+      "inputs": {
+        "method": "POST",
+        "uri": "@parameters('functionAppUrl')",
+        "headers": {
+          "Content-Type": "application/json",
+          "x-functions-key": "@parameters('functionAppKey')"
+        },
+        "body": "@outputs('Parse_Email_Body')"
+      },
+      "runAfter": {
+        "Parse_Email_Body": [
+          "Succeeded"
+        ]
+      }
+    },
+    "Check_Function_Response": {
+      "type": "ParseJson",
+      "inputs": {
+        "content": "@body('Call_Azure_Function')",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "success": {
+              "type": "boolean"
+            },
+            "transaction_id": {
+              "type": "integer"
+            },
+            "merchant_name": {
+              "type": "string"
+            },
+            "amount": {
+              "type": "number"
+            },
+            "category": {
+              "type": "string"
+            },
+            "confidence": {
+              "type": "number"
+            },
+            "error": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "runAfter": {
+        "Call_Azure_Function": [
+          "Succeeded"
+        ]
+      }
+    },
+    "Condition_Success": {
+      "type": "If",
+      "expression": {
+        "and": [
+          {
+            "equals": [
+              "@body('Check_Function_Response')?['success']",
+              true
+            ]
+          }
+        ]
+      },
+      "actions": {
+        "Log_Success": {
+          "type": "Compose",
+          "inputs": {
+            "message": "Transakcia úspešne spracovaná",
+            "transaction_id": "@body('Check_Function_Response')?['transaction_id']",
+            "merchant": "@body('Check_Function_Response')?['merchant_name']",
+            "amount": "@body('Check_Function_Response')?['amount']",
+            "category": "@body('Check_Function_Response')?['category']"
+          }
+        }
+      },
+      "else": {
+        "actions": {
+          "Log_Error": {
+            "type": "Compose",
+            "inputs": {
+              "message": "Chyba pri spracovaní transakcie",
+              "error": "@body('Check_Function_Response')?['error']"
+            }
+          },
+          "Send_Error_Email": {
+            "type": "ApiConnection",
+            "inputs": {
+              "host": {
+                "connection": {
+                  "name": "@parameters('$connections')['office365']['connectionId']"
+                }
+              },
+              "method": "post",
+              "path": "/v2/Mail",
+              "body": {
+                "To": "your-email@example.com",
+                "Subject": "Chyba pri spracovaní transakcie",
+                "Body": "<p>Vyskytla sa chyba pri spracovaní B-mail notifikácie:</p><p>@{body('Check_Function_Response')?['error']}</p>"
+              }
+            },
+            "runAfter": {
+              "Log_Error": [
+                "Succeeded"
+              ]
+            }
+          }
+        }
+      },
+      "runAfter": {
+        "Check_Function_Response": [
+          "Succeeded"
+        ]
+      }
+    }
+  },
+  "outputs": {}
+}
+

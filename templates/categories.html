@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏷️ Kategórie - Finance Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background: white;
+            color: #667eea;
+            text-decoration: none;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .back-link:hover {
+            transform: scale(1.05);
+        }
+
+        .categories-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .add-category-form {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .add-category-form input {
+            padding: 12px 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 1em;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .add-category-form button {
+            padding: 12px 30px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .add-category-form button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        .categories-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .category-card {
+            background: #f9fafb;
+            border-radius: 12px;
+            padding: 20px;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .category-card:hover {
+            border-color: #667eea;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .category-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .category-icon {
+            font-size: 2em;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+        }
+
+        .category-name {
+            font-size: 1.2em;
+            font-weight: 600;
+            flex: 1;
+        }
+
+        .category-stats {
+            margin-bottom: 15px;
+        }
+
+        .category-stat {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .category-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            flex: 1;
+        }
+
+        .btn-edit {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .btn-edit:hover {
+            background: #d97706;
+        }
+
+        .btn-delete {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-delete:hover {
+            background: #dc2626;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            font-size: 1.5em;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 1em;
+        }
+
+        .emoji-picker {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 5px;
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .emoji-option {
+            font-size: 1.5em;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .emoji-option:hover {
+            background: #e0e7ff;
+            transform: scale(1.2);
+        }
+
+        .color-swatches {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .color-swatch {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 10px;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .color-swatch:hover {
+            transform: scale(1.1);
+        }
+
+        .color-swatch.selected {
+            border-color: #333;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #d1d5db;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #667eea;
+            font-size: 1.2em;
+        }
+
+        @media (max-width: 768px) {
+            .categories-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-link">← Späť na Dashboard</a>
+
+        <header>
+            <h1>🏷️ Správa kategórií</h1>
+            <p>Vytvor, uprav alebo vymaž kategórie pre transakcie</p>
+        </header>
+
+        <div class="categories-card">
+            <h2 style="margin-bottom: 20px;">➕ Pridať novú kategóriu</h2>
+            <form class="add-category-form" onsubmit="createCategory(event)">
+                <input type="text" id="new-category-name" placeholder="Názov kategórie (napr. Oblečenie)" required>
+                <input type="text" id="new-category-icon" placeholder="Emoji (napr. 👕)" maxlength="2" value="📦">
+                <input type="color" id="new-category-color" value="#667eea">
+                <button type="submit">Vytvoriť</button>
+            </form>
+
+            <h2 style="margin: 30px 0 20px 0;">📋 Všetky kategórie</h2>
+            <div id="categories-grid" class="categories-grid">
+                <div class="loading">Načítavam kategórie...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal pre editáciu -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">✏️ Upraviť kategóriu</div>
+            <form onsubmit="saveCategory(event)">
+                <input type="hidden" id="edit-category-id">
+                
+                <div class="form-group">
+                    <label>Názov kategórie</label>
+                    <input type="text" id="edit-category-name" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Emoji ikona</label>
+                    <input type="text" id="edit-category-icon" maxlength="2" required>
+                    <div class="emoji-picker">
+                        <span class="emoji-option" onclick="selectEmoji('🍕')">🍕</span>
+                        <span class="emoji-option" onclick="selectEmoji('🍔')">🍔</span>
+                        <span class="emoji-option" onclick="selectEmoji('☕')">☕</span>
+                        <span class="emoji-option" onclick="selectEmoji('🛒')">🛒</span>
+                        <span class="emoji-option" onclick="selectEmoji('🚗')">🚗</span>
+                        <span class="emoji-option" onclick="selectEmoji('⛽')">⛽</span>
+                        <span class="emoji-option" onclick="selectEmoji('🏠')">🏠</span>
+                        <span class="emoji-option" onclick="selectEmoji('💊')">💊</span>
+                        <span class="emoji-option" onclick="selectEmoji('👕')">👕</span>
+                        <span class="emoji-option" onclick="selectEmoji('🎬')">🎬</span>
+                        <span class="emoji-option" onclick="selectEmoji('🎮')">🎮</span>
+                        <span class="emoji-option" onclick="selectEmoji('📱')">📱</span>
+                        <span class="emoji-option" onclick="selectEmoji('💰')">💰</span>
+                        <span class="emoji-option" onclick="selectEmoji('🎓')">🎓</span>
+                        <span class="emoji-option" onclick="selectEmoji('🏋️')">🏋️</span>
+                        <span class="emoji-option" onclick="selectEmoji('✈️')">✈️</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Farba</label>
+                    <div class="color-swatches">
+                        <div class="color-swatch" style="background: #ef4444" onclick="selectColor('#ef4444')"></div>
+                        <div class="color-swatch" style="background: #f59e0b" onclick="selectColor('#f59e0b')"></div>
+                        <div class="color-swatch" style="background: #10b981" onclick="selectColor('#10b981')"></div>
+                        <div class="color-swatch" style="background: #3b82f6" onclick="selectColor('#3b82f6')"></div>
+                        <div class="color-swatch" style="background: #8b5cf6" onclick="selectColor('#8b5cf6')"></div>
+                        <div class="color-swatch" style="background: #ec4899" onclick="selectColor('#ec4899')"></div>
+                    </div>
+                    <input type="color" id="edit-category-color" style="width: 100%; margin-top: 10px; height: 50px;">
+                </div>
+
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">💾 Uložiť</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Zrušiť</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let categoriesData = [];
+
+        async function loadCategories() {
+            try {
+                const response = await fetch('/api/categories/list');
+                const data = await response.json();
+
+                console.log('Categories:', data);
+
+                categoriesData = data.categories || [];
+                renderCategories();
+            } catch (error) {
+                console.error('Chyba pri načítaní kategórií:', error);
+            }
+        }
+
+        function renderCategories() {
+            const grid = document.getElementById('categories-grid');
+
+            if (categoriesData.length === 0) {
+                grid.innerHTML = '<div class="loading">Žiadne kategórie</div>';
+                return;
+            }
+
+            grid.innerHTML = '';
+
+            categoriesData.forEach(category => {
+                const id = category.CategoryID || category.CATEGORYID;
+                const name = category.Name || category.NAME;
+                const icon = category.Icon || category.ICON || '📦';
+                const color = category.Color || category.COLOR || '#667eea';
+                const count = category.transaction_count || category.TRANSACTION_COUNT || 0;
+                const total = parseFloat(category.total_amount || category.TOTAL_AMOUNT || 0);
+
+                const card = document.createElement('div');
+                card.className = 'category-card';
+                card.innerHTML = `
+                    <div class="category-header">
+                        <div class="category-icon" style="background: ${color}20;">
+                            ${icon}
+                        </div>
+                        <div class="category-name">${name}</div>
+                    </div>
+                    <div class="category-stats">
+                        <div class="category-stat">
+                            <span>Počet transakcií:</span>
+                            <strong>${count}</strong>
+                        </div>
+                        <div class="category-stat">
+                            <span>Celková suma:</span>
+                            <strong>${total.toFixed(2)} €</strong>
+                        </div>
+                    </div>
+                    <div class="category-actions">
+                        <button class="btn btn-edit" onclick="editCategory(${id})">✏️ Upraviť</button>
+                        <button class="btn btn-delete" onclick="deleteCategory(${id}, '${name}')">🗑️ Vymazať</button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        async function createCategory(event) {
+            event.preventDefault();
+
+            const name = document.getElementById('new-category-name').value;
+            const icon = document.getElementById('new-category-icon').value;
+            const color = document.getElementById('new-category-color').value;
+
+            try {
+                const response = await fetch('/api/categories/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, icon, color })
+                });
+
+                if (response.ok) {
+                    alert('✅ Kategória vytvorená!');
+                    document.getElementById('new-category-name').value = '';
+                    loadCategories();
+                } else {
+                    alert('❌ Chyba pri vytváraní kategórie');
+                }
+            } catch (error) {
+                console.error('Chyba:', error);
+                alert('❌ Chyba pri vytváraní kategórie');
+            }
+        }
+
+        function editCategory(id) {
+            const category = categoriesData.find(c => 
+                (c.CategoryID || c.CATEGORYID) == id
+            );
+
+            if (!category) return;
+
+            document.getElementById('edit-category-id').value = id;
+            document.getElementById('edit-category-name').value = category.Name || category.NAME;
+            document.getElementById('edit-category-icon').value = category.Icon || category.ICON;
+            document.getElementById('edit-category-color').value = category.Color || category.COLOR;
+
+            document.getElementById('edit-modal').classList.add('active');
+        }
+
+        async function saveCategory(event) {
+            event.preventDefault();
+
+            const id = document.getElementById('edit-category-id').value;
+            const name = document.getElementById('edit-category-name').value;
+            const icon = document.getElementById('edit-category-icon').value;
+            const color = document.getElementById('edit-category-color').value;
+
+            try {
+                const response = await fetch(`/api/categories/update/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, icon, color })
+                });
+
+                if (response.ok) {
+                    alert('✅ Kategória aktualizovaná!');
+                    closeModal();
+                    loadCategories();
+                } else {
+                    alert('❌ Chyba pri aktualizácii kategórie');
+                }
+            } catch (error) {
+                console.error('Chyba:', error);
+                alert('❌ Chyba pri aktualizácii kategórie');
+            }
+        }
+
+        async function deleteCategory(id, name) {
+            if (!confirm(`Naozaj chceš vymazať kategóriu "${name}"?\n\nTransakcie s touto kategóriou budú nastavené ako nezaradené.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/categories/delete/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    alert('✅ Kategória vymazaná!');
+                    loadCategories();
+                } else {
+                    alert('❌ Chyba pri mazaní kategórie');
+                }
+            } catch (error) {
+                console.error('Chyba:', error);
+                alert('❌ Chyba pri mazaní kategórie');
+            }
+        }
+
+        function selectEmoji(emoji) {
+            document.getElementById('edit-category-icon').value = emoji;
+        }
+
+        function selectColor(color) {
+            document.getElementById('edit-category-color').value = color;
+            
+            // Update selected state
+            document.querySelectorAll('.color-swatch').forEach(swatch => {
+                swatch.classList.remove('selected');
+            });
+            event.target.classList.add('selected');
+        }
+
+        function closeModal() {
+            document.getElementById('edit-modal').classList.remove('active');
+        }
+
+        // Close modal on background click
+        document.getElementById('edit-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+
+        window.onload = loadCategories;
+    </script>
+</body>
+</html>
+

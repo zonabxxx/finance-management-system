@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💰 Finance Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card h3 {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-card .value {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .value.positive {
+            color: #10b981;
+        }
+
+        .stat-card .value.negative {
+            color: #ef4444;
+        }
+
+        .stat-card .value.neutral {
+            color: #667eea;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .chart-card h2 {
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+
+        .recent-transactions {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .recent-transactions h2 {
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+
+        .transaction-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.2s ease;
+        }
+
+        .transaction-item:hover {
+            background: #f9fafb;
+        }
+
+        .transaction-item:last-child {
+            border-bottom: none;
+        }
+
+        .transaction-info {
+            flex: 1;
+        }
+
+        .transaction-merchant {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .transaction-date {
+            font-size: 0.85em;
+            color: #666;
+        }
+
+        .transaction-amount {
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        .transaction-amount.positive {
+            color: #10b981;
+        }
+
+        .transaction-amount.negative {
+            color: #ef4444;
+        }
+
+        .nav-links {
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .nav-links a {
+            display: inline-block;
+            margin: 0 10px;
+            padding: 12px 30px;
+            background: white;
+            color: #667eea;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .nav-links a:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: white;
+            font-size: 1.5em;
+        }
+
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💰 Finance Dashboard</h1>
+            <p>Správa osobných financií</p>
+        </header>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>📊 Celkové transakcie</h3>
+                <div class="value neutral" id="total-transactions">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>📉 Výdavky (30 dní)</h3>
+                <div class="value negative" id="total-expenses">0 €</div>
+            </div>
+            <div class="stat-card">
+                <h3>📈 Príjmy (30 dní)</h3>
+                <div class="value positive" id="total-income">0 €</div>
+            </div>
+            <div class="stat-card">
+                <h3>💸 Priemerný výdavok</h3>
+                <div class="value neutral" id="avg-expense">0 €</div>
+            </div>
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h2>📊 Mesačné výdavky a príjmy</h2>
+                <canvas id="monthlyChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <h2>🥧 Výdavky podľa kategórií</h2>
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+
+        <div class="recent-transactions">
+            <h2>🔄 Posledné transakcie</h2>
+            <div id="transactions-list">
+                <div class="loading">Načítavam...</div>
+            </div>
+        </div>
+
+        <div class="nav-links">
+            <a href="/transactions">📋 Všetky transakcie</a>
+            <a href="/categories">🏷️ Kategórie</a>
+            <a href="#" onclick="location.reload()">🔄 Obnoviť</a>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Načítanie štatistík
+        async function loadDashboard() {
+            try {
+                // Základné štatistiky
+                const statsResponse = await fetch('/api/dashboard/stats?days=30');
+                const statsData = await statsResponse.json();
+                
+                console.log('Stats data:', statsData);
+                
+                // Štatistiky - teraz sú v štruktúrovanom formáte
+                if (statsData.summary) {
+                    // Turso vracia názvy stĺpcov ako "TOTAL TRANSACTIONS" s medzerami
+                    const totalTransactions = statsData.summary['TOTAL TRANSACTIONS'] || statsData.summary.total_transactions || '0';
+                    const totalExpenses = statsData.summary['TOTAL EXPENSES'] || statsData.summary.total_expenses || 0;
+                    const totalIncome = statsData.summary['TOTAL INCOME'] || statsData.summary.total_income || 0;
+                    const avgExpense = statsData.summary['AVG EXPENSE'] || statsData.summary.avg_expense || 0;
+                    
+                    document.getElementById('total-transactions').textContent = totalTransactions;
+                    document.getElementById('total-expenses').textContent = parseFloat(totalExpenses).toFixed(2) + ' €';
+                    document.getElementById('total-income').textContent = parseFloat(totalIncome).toFixed(2) + ' €';
+                    document.getElementById('avg-expense').textContent = parseFloat(avgExpense).toFixed(2) + ' €';
+                }
+
+                // Posledné transakcie - teraz sú v štruktúrovanom formáte
+                if (statsData.recent_transactions && statsData.recent_transactions.length > 0) {
+                    const transactionsList = document.getElementById('transactions-list');
+                    transactionsList.innerHTML = '';
+                    
+                    statsData.recent_transactions.forEach(transaction => {
+                        const date = transaction.TransactionDate || transaction.TRANSACTIONDATE || '';
+                        const amount = parseFloat(transaction.Amount || transaction.AMOUNT || 0);
+                        const currency = transaction.Currency || transaction.CURRENCY || 'EUR';
+                        const merchant = transaction.MerchantName || transaction.MERCHANTNAME || 'Neznámy';
+                        const method = transaction.PaymentMethod || transaction.PAYMENTMETHOD || 'N/A';
+                        
+                        const item = document.createElement('div');
+                        item.className = 'transaction-item';
+                        item.innerHTML = `
+                            <div class="transaction-info">
+                                <div class="transaction-merchant">${merchant}</div>
+                                <div class="transaction-date">${date} • ${method}</div>
+                            </div>
+                            <div class="transaction-amount ${amount < 0 ? 'negative' : 'positive'}">
+                                ${amount.toFixed(2)} ${currency}
+                            </div>
+                        `;
+                        transactionsList.appendChild(item);
+                    });
+                }
+
+                // Grafy
+                const chartResponse = await fetch('/api/dashboard/chart-data');
+                const chartData = await chartResponse.json();
+                
+                console.log('Chart data:', chartData);
+                
+                createMonthlyChart(chartData.monthly);
+                createCategoryChart(chartData.category_pie);
+
+            } catch (error) {
+                console.error('Chyba pri načítaní dát:', error);
+            }
+        }
+
+        function createMonthlyChart(data) {
+            if (!data || data.length === 0) return;
+
+            const labels = [];
+            const expenses = [];
+            const income = [];
+
+            data.forEach(row => {
+                // Turso vracia názvy s malými písmenami alebo uppercase
+                labels.push(row.month || row.MONTH);
+                expenses.push(parseFloat(row.expenses || row.EXPENSES || 0));
+                income.push(parseFloat(row.income || row.INCOME || 0));
+            });
+
+            const ctx = document.getElementById('monthlyChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Výdavky',
+                        data: expenses,
+                        backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                    }, {
+                        label: 'Príjmy',
+                        data: income,
+                        backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function createCategoryChart(data) {
+            if (!data || data.length === 0) return;
+
+            const labels = [];
+            const values = [];
+
+            data.slice(0, 5).forEach(row => {
+                // Turso vracia názvy uppercase alebo lowercase
+                labels.push(row.category || row.CATEGORY);
+                values.push(Math.abs(parseFloat(row.total || row.TOTAL || 0)));
+            });
+
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: [
+                            'rgba(239, 68, 68, 0.8)',
+                            'rgba(245, 158, 11, 0.8)',
+                            'rgba(16, 185, 129, 0.8)',
+                            'rgba(59, 130, 246, 0.8)',
+                            'rgba(139, 92, 246, 0.8)',
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                        }
+                    }
+                }
+            });
+        }
+
+        // Načítať dashboard pri načítaní stránky
+        window.onload = loadDashboard;
+    </script>
+</body>
+</html>
+

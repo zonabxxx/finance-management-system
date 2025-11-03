@@ -1,0 +1,213 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Finance Tracker API",
+    "description": "API pre prístup k finančným dátam z Turso databázy. Poskytuje informácie o transakciách, výdavkoch a príjmoch.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000"
+    }
+  ],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "summary": "Health Check",
+        "description": "Kontrola či API server beží",
+        "operationId": "healthCheck",
+        "responses": {
+          "200": {
+            "description": "Server beží"
+          }
+        }
+      }
+    },
+    "/api/transactions/summary": {
+      "get": {
+        "summary": "Zhrnutie transakcií",
+        "description": "Získa celkové výdavky, príjmy a počet transakcií za určité obdobie",
+        "operationId": "getTransactionsSummary",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "description": "Počet dní späť (default: 30)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 30
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Úspešne načítané"
+          }
+        }
+      }
+    },
+    "/api/transactions/recent": {
+      "get": {
+        "summary": "Posledné transakcie",
+        "description": "Získa posledných N transakcií",
+        "operationId": "getRecentTransactions",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Počet transakcií (default: 10)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Úspešne načítané"
+          }
+        }
+      }
+    },
+    "/api/transactions/by-category": {
+      "get": {
+        "summary": "Výdavky podľa kategórií",
+        "description": "Zoskupené výdavky podľa kategórií (jedlo, potraviny, atď.)",
+        "operationId": "getTransactionsByCategory",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "description": "Počet dní späť (default: 30)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 30
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Úspešne načítané"
+          }
+        }
+      }
+    },
+    "/api/transactions/top-merchants": {
+      "get": {
+        "summary": "Top obchodníci",
+        "description": "Obchodníci kde míňaš najviac peňazí",
+        "operationId": "getTopMerchants",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Počet výsledkov (default: 10)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "description": "Počet dní späť (default: 30)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 30
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Úspešne načítané"
+          }
+        }
+      }
+    },
+    "/api/transactions/monthly": {
+      "get": {
+        "summary": "Mesačné štatistiky",
+        "description": "Výdavky a príjmy po mesiacoch",
+        "operationId": "getMonthlyStats",
+        "parameters": [
+          {
+            "name": "months",
+            "in": "query",
+            "description": "Počet mesiacov späť (default: 6)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 6
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Úspešne načítané"
+          }
+        }
+      }
+    },
+    "/api/transactions/search": {
+      "get": {
+        "summary": "Vyhľadávanie transakcií",
+        "description": "Vyhľadaj transakcie podľa obchodníka, sumy atď.",
+        "operationId": "searchTransactions",
+        "parameters": [
+          {
+            "name": "merchant",
+            "in": "query",
+            "description": "Názov obchodníka (časť názvu stačí)",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "min_amount",
+            "in": "query",
+            "description": "Minimálna suma",
+            "required": false,
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "max_amount",
+            "in": "query",
+            "description": "Maximálna suma",
+            "required": false,
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Úspešne načítané"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "API Key"
+      }
+    }
+  },
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ]
+}
+
