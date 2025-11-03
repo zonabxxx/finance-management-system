@@ -42,3 +42,4 @@ certifi>=2025.10.5
 # Flask API server pre ChatGPT GPT integráciu
 flask==3.0.0
 flask-cors==4.0.0
+gunicorn==21.2.0
