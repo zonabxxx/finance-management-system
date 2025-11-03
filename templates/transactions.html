@@ -231,17 +231,18 @@
             <table class="transactions-table">
                 <thead>
                     <tr>
-                        <th>Dátum</th>
-                        <th>Obchodník</th>
-                        <th>Kategória</th>
-                        <th>Spôsob platby</th>
-                        <th>Suma</th>
-                        <th>Akcie</th>
+                    <th>Dátum</th>
+                    <th>Obchodník</th>
+                    <th>Kategória</th>
+                    <th>Účet</th>
+                    <th>Spôsob platby</th>
+                    <th>Suma</th>
+                    <th>Akcie</th>
                     </tr>
                 </thead>
                 <tbody id="transactions-tbody">
                     <tr>
-                        <td colspan="5" class="loading">Načítavam transakcie...</td>
+                        <td colspan="7" class="loading">Načítavam transakcie...</td>
                     </tr>
                 </tbody>
             </table>
@@ -292,6 +293,9 @@
                         const description = transaction.Description || transaction.DESCRIPTION || '';
                         const paymentMethod = transaction.PaymentMethod || transaction.PAYMENTMETHOD || 'N/A';
                         const category = transaction.CategoryName || transaction.CATEGORYNAME || 'Nezaradené';
+                        const accountName = transaction.AccountName || transaction.ACCOUNTNAME || 'Nepriradený';
+                        const bankName = transaction.BankName || transaction.BANKNAME || '';
+                        const accountInfo = bankName ? `${accountName} (${bankName})` : accountName;
 
                         const row = document.createElement('tr');
                         row.innerHTML = `
@@ -301,6 +305,7 @@
                                 ${description ? '<br><small>' + description + '</small>' : ''}
                             </td>
                             <td id="cat-${id}"><span class="category-badge">${category}</span></td>
+                            <td><small style="color: #666;">🏦 ${accountInfo}</small></td>
                             <td class="payment-method">${paymentMethod}</td>
                             <td class="${amount < 0 ? 'amount-negative' : 'amount-positive'}">
                                 ${amount.toFixed(2)} ${currency}
@@ -319,11 +324,11 @@
                     document.getElementById('prev-btn').disabled = currentPage === 0;
                     document.getElementById('next-btn').disabled = data.transactions.length < limit;
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="6" class="loading">Žiadne transakcie</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="7" class="loading">Žiadne transakcie</td></tr>';
                 }
             } catch (error) {
                 console.error('Chyba pri načítaní transakcií:', error);
-                tbody.innerHTML = '<tr><td colspan="6" class="loading">Chyba pri načítaní dát</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="loading">Chyba pri načítaní dát</td></tr>';
             }
         }
 

@@ -217,7 +217,30 @@ def save_transaction_to_db(transaction: Dict) -> bool:
         True ak úspešné, False inak
     """
     try:
+        # Najprv skúsime nájsť AccountID podľa IBAN
+        account_id = None
+        iban = transaction.get('iban', '')
+        
+        if iban:
+            account_query = f"SELECT AccountID FROM Accounts WHERE IBAN = '{iban}' AND IsActive = 1 LIMIT 1;"
+            account_result = subprocess.run(
+                ['turso', 'db', 'shell', 'financa-sprava', account_query],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            if account_result.returncode == 0:
+                lines = account_result.stdout.strip().split('\n')
+                if len(lines) > 1 and lines[1].strip():
+                    account_id = int(lines[1].strip())
+                    print(f"  🏦 Účet nájdený: AccountID = {account_id}")
+                else:
+                    print(f"  ⚠️  Účet s IBAN {iban} neexistuje v Settings. Pridaj ho!")
+        
         # Pripravíme SQL query
+        account_id_sql = str(account_id) if account_id else 'NULL'
+        
         query = f"""
         INSERT INTO Transactions (
             TransactionDate,
@@ -232,6 +255,7 @@ def save_transaction_to_db(transaction: Dict) -> bool:
             CO2Footprint,
             RawEmailData,
             CategorySource,
+            AccountID,
             CreatedAt
         ) VALUES (
             '{transaction['date'].isoformat()}',
@@ -246,6 +270,7 @@ def save_transaction_to_db(transaction: Dict) -> bool:
             {transaction.get('co2_footprint', 0)},
             '{transaction.get('raw_email', '').replace("'", "''")}',
             'Email',
+            {account_id_sql},
             '{datetime.now().isoformat()}'
         );
         """

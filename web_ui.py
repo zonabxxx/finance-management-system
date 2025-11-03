@@ -452,11 +452,15 @@ def transactions_list():
         t.MerchantName,
         t.Description,
         t.PaymentMethod,
+        t.IBAN,
         COALESCE(c.Name, 'Nezaradené') as CategoryName,
         c.Icon as CategoryIcon,
-        t.CategorySource
+        t.CategorySource,
+        COALESCE(a.AccountName, 'Nepriradený') as AccountName,
+        a.BankName as BankName
     FROM Transactions t
     LEFT JOIN Categories c ON t.CategoryID = c.CategoryID
+    LEFT JOIN Accounts a ON t.AccountID = a.AccountID
     ORDER BY t.TransactionDate DESC
     LIMIT {limit} OFFSET {offset};
     """
