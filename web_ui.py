@@ -628,10 +628,8 @@ def gpt_get_categories():
         CategoryID,
         Name,
         Icon,
-        Color,
-        Description
+        Color
     FROM Categories
-    WHERE IsActive = 1
     ORDER BY Name;
     """
     
