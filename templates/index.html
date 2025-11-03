@@ -354,11 +354,13 @@
 
             const labels = [];
             const values = [];
+            const colors = [];
 
             data.slice(0, 5).forEach(row => {
-                // Turso vracia názvy uppercase alebo lowercase
-                labels.push(row.category || row.CATEGORY);
-                values.push(Math.abs(parseFloat(row.total || row.TOTAL || 0)));
+                // API vracia: category, amount, icon, color
+                labels.push((row.icon || '') + ' ' + (row.category || 'Nezaradené'));
+                values.push(Math.abs(parseFloat(row.amount || 0)));
+                colors.push(row.color || '#667eea');
             });
 
             const ctx = document.getElementById('categoryChart').getContext('2d');
@@ -368,13 +370,7 @@
                     labels: labels,
                     datasets: [{
                         data: values,
-                        backgroundColor: [
-                            'rgba(239, 68, 68, 0.8)',
-                            'rgba(245, 158, 11, 0.8)',
-                            'rgba(16, 185, 129, 0.8)',
-                            'rgba(59, 130, 246, 0.8)',
-                            'rgba(139, 92, 246, 0.8)',
-                        ]
+                        backgroundColor: colors
                     }]
                 },
                 options: {
