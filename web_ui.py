@@ -1187,6 +1187,67 @@ def receive_email():
         if result:
             print(f"   ✅ Transaction saved to database")
             
+            # Automatická kategorizácia
+            try:
+                # Získaj ID novo vytvorenej transakcie
+                last_id_query = "SELECT TransactionID FROM Transactions ORDER BY TransactionID DESC LIMIT 1;"
+                last_id_result = turso_query(last_id_query)
+                
+                if last_id_result and 'rows' in last_id_result and len(last_id_result['rows']) > 0:
+                    transaction_id = int(last_id_result['rows'][0][0]['value'])
+                    
+                    # Jednoduchá kategorizácia podľa kľúčových slov
+                    category_id = None
+                    merchant_lower = merchant.lower()
+                    
+                    # Načítaj kategórie
+                    categories_query = "SELECT CategoryID, Name FROM Categories;"
+                    categories_result = turso_query(categories_query)
+                    
+                    if categories_result and 'rows' in categories_result:
+                        # Kľúčové slová pre kategórie
+                        keywords = {
+                            'bolt': ['bolt', 'uber', 'taxi'],
+                            'jedlo': ['pizza', 'burger', 'restaurant', 'kfc', 'mcdonalds', 'food', 'wolt'],
+                            'potraviny': ['tesco', 'kaufland', 'lidl', 'billa', 'coop'],
+                            'doprava': ['slovnaft', 'shell', 'omv', 'parking', 'mhd'],
+                        }
+                        
+                        # Hľadaj kategóriu podľa názvu a kľúčových slov
+                        for row in categories_result['rows']:
+                            cat_id = int(row[0]['value'])
+                            cat_name = row[1]['value'].lower()
+                            
+                            # Match podľa názvu kategórie v merchantovi
+                            if cat_name in merchant_lower:
+                                category_id = cat_id
+                                break
+                            
+                            # Match podľa kľúčových slov
+                            for keyword_group, keywords_list in keywords.items():
+                                if keyword_group in cat_name:
+                                    for keyword in keywords_list:
+                                        if keyword in merchant_lower:
+                                            category_id = cat_id
+                                            break
+                                    if category_id:
+                                        break
+                            
+                            if category_id:
+                                break
+                        
+                        # Ak našli kategóriu, priradíme ju
+                        if category_id:
+                            update_query = f"""
+                            UPDATE Transactions 
+                            SET CategoryID = {category_id}, CategorySource = 'Auto'
+                            WHERE TransactionID = {transaction_id};
+                            """
+                            turso_query(update_query)
+                            print(f"   🤖 Auto-categorized: CategoryID={category_id}")
+            except Exception as e:
+                print(f"   ⚠️  Auto-categorization failed: {e}")
+            
             return jsonify({
                 'status': 'success',
                 'message': 'Transaction processed',
