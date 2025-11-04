@@ -8,6 +8,7 @@ from flask_cors import CORS
 import os
 import requests
 import json
+import re
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
@@ -1059,17 +1060,31 @@ def receive_email():
     CloudMailin webhook endpoint
     Tatra banka → CloudMailin → Railway
     
-    CloudMailin posiela JSON:
-    {
-      "plain": "email body text...",
-      "html": "<html>...",
-      "headers": {...},
-      "envelope": {...}
-    }
+    CloudMailin sends data in various formats (multipart, JSON, etc.)
     """
     try:
-        # CloudMailin posiela JSON payload
-        data = request.json
+        # CloudMailin môže posielať rôzne Content-Types
+        # Skús JSON, form data, alebo raw data
+        data = None
+        
+        if request.is_json:
+            data = request.json
+        elif request.form:
+            # Multipart form data (CloudMailin Normalized)
+            data = {
+                'plain': request.form.get('plain', ''),
+                'html': request.form.get('html', ''),
+                'headers': {},
+                'envelope': {
+                    'from': request.form.get('envelope[from]', 'unknown')
+                }
+            }
+        else:
+            # Skús get raw data
+            try:
+                data = request.get_json(force=True)
+            except:
+                return jsonify({'error': 'Unable to parse request data'}), 400
         
         if not data:
             return jsonify({'error': 'No data received'}), 400
