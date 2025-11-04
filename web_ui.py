@@ -882,7 +882,168 @@ if __name__ == '__main__':
     print("=" * 60)
     print(f"🌐 Dashboard: http://0.0.0.0:{port}")
     print(f"📊 Transakcie: http://0.0.0.0:{port}/transactions")
+    print(f"📧 Sync Emails: POST http://0.0.0.0:{port}/api/sync-emails")
     print("=" * 60)
     
     # Use gunicorn in production, Flask dev server locally
     app.run(host='0.0.0.0', port=port, debug=False)
+
+
+# ============================================================================
+# WEBHOOK ENDPOINT - Manuálna synchronizácia Gmail B-mailov
+# ============================================================================
+
+@app.route('/api/sync-emails', methods=['POST', 'GET'])
+def sync_emails():
+    """
+    Webhook endpoint pre manuálnu synchronizáciu Gmail B-mailov
+    Použitie: POST /api/sync-emails?secret=API_SECRET_KEY
+    """
+    # Jednoduchá autentifikácia
+    api_secret = os.getenv('API_SECRET_KEY', 'change-me-in-production')
+    provided_secret = request.args.get('secret') or request.headers.get('X-API-Secret')
+    
+    if provided_secret != api_secret:
+        return jsonify({
+            'error': 'Unauthorized',
+            'message': 'Invalid API secret'
+        }), 401
+    
+    try:
+        import imaplib
+        import email
+        from email.header import decode_header
+        import re
+        
+        EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
+        EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+        EMAIL_IMAP_SERVER = os.getenv("EMAIL_IMAP_SERVER", "imap.gmail.com")
+        
+        if not EMAIL_ADDRESS or not EMAIL_PASSWORD:
+            return jsonify({
+                'error': 'Configuration error',
+                'message': 'EMAIL_ADDRESS or EMAIL_PASSWORD not set'
+            }), 500
+        
+        # Pripojenie na Gmail
+        mail = imaplib.IMAP4_SSL(EMAIL_IMAP_SERVER)
+        mail.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+        mail.select("INBOX")
+        
+        # Hľadanie B-mailov
+        status, messages = mail.search(None, '(FROM "b-mail@tatrabanka.sk")')
+        
+        if status != "OK":
+            mail.logout()
+            return jsonify({
+                'error': 'Search failed',
+                'message': f'Gmail search status: {status}'
+            }), 500
+        
+        email_ids = messages[0].split()
+        processed = 0
+        errors = 0
+        
+        # Spracovanie emailov
+        for email_id in email_ids[-10:]:  # Posledných 10 B-mailov
+            try:
+                status, msg_data = mail.fetch(email_id, "(RFC822)")
+                if status != "OK":
+                    continue
+                
+                for response_part in msg_data:
+                    if isinstance(response_part, tuple):
+                        msg = email.message_from_bytes(response_part[1])
+                        
+                        # Získanie body
+                        body = ""
+                        if msg.is_multipart():
+                            for part in msg.walk():
+                                if part.get_content_type() == "text/plain":
+                                    try:
+                                        body = part.get_payload(decode=True).decode()
+                                    except:
+                                        pass
+                        else:
+                            try:
+                                body = msg.get_payload(decode=True).decode()
+                            except:
+                                pass
+                        
+                        # Parsovanie transakcie
+                        main_match = re.search(
+                            r'(\d{1,2}\.\d{1,2}\.\d{4})\s+(\d{1,2}:\d{2})\s+bol zostatok.*?'
+                            r'(SK\d+)\s+(znizeny|zvyseny)\s+o\s+([\d,]+)\s*EUR',
+                            body
+                        )
+                        
+                        if main_match:
+                            date_str = f"{main_match.group(1)} {main_match.group(2)}"
+                            trans_date = datetime.strptime(date_str, "%d.%m.%Y %H:%M")
+                            iban = main_match.group(3)
+                            amount_str = main_match.group(5).replace(',', '.')
+                            amount = float(amount_str)
+                            if main_match.group(4) == 'znizeny':
+                                amount = -amount
+                            
+                            # Popis
+                            desc_match = re.search(r'Popis transakcie:\s*(.+?)(?:\n|$)', body)
+                            description = desc_match.group(1).strip() if desc_match else ''
+                            
+                            # Merchant
+                            merchant = 'Unknown'
+                            if 'Platba kartou' in description:
+                                merchant_match = re.search(r',\s*([A-Z0-9\.\-]+)', description)
+                                if merchant_match:
+                                    merchant_raw = merchant_match.group(1).strip('.')
+                                    merchant = re.sub(r'\.?[A-Z]{3}\d+$', '', merchant_raw) or merchant_raw
+                            
+                            # Nájdenie AccountID
+                            account_query = f"SELECT AccountID FROM Accounts WHERE IBAN = '{iban}' AND IsActive = 1 LIMIT 1;"
+                            account_result = turso_query(account_query)
+                            account_id = None
+                            if account_result and 'rows' in account_result and len(account_result['rows']) > 0:
+                                account_id = int(account_result['rows'][0][0]['value'])
+                            
+                            account_id_sql = str(account_id) if account_id else 'NULL'
+                            
+                            # Insert transakcie
+                            insert_query = f"""
+                            INSERT INTO Transactions (
+                                TransactionDate, Amount, Currency, MerchantName, Description,
+                                IBAN, TransactionType, PaymentMethod, RawEmailData,
+                                CategorySource, AccountID, CreatedAt
+                            ) VALUES (
+                                '{trans_date.isoformat()}', {amount}, 'EUR',
+                                '{merchant.replace("'", "''")}', '{description.replace("'", "''")}',
+                                '{iban}', '{'Debit' if amount < 0 else 'Credit'}', 'Card',
+                                '{body.replace("'", "''")}', 'Email', {account_id_sql},
+                                '{datetime.now().isoformat()}'
+                            );
+                            """
+                            
+                            result = turso_query(insert_query)
+                            if result:
+                                processed += 1
+                            else:
+                                errors += 1
+            
+            except Exception as e:
+                print(f"Error processing email: {e}")
+                errors += 1
+        
+        mail.logout()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Email sync completed',
+            'checked': len(email_ids),
+            'processed': processed,
+            'errors': errors
+        })
+    
+    except Exception as e:
+        return jsonify({
+            'error': 'Sync failed',
+            'message': str(e)
+        }), 500
