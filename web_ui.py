@@ -457,6 +457,21 @@ def transactions_list():
     """Zoznam všetkých transakcií s filtráciou"""
     limit = request.args.get('limit', 50)
     offset = request.args.get('offset', 0)
+    search = request.args.get('search', '')
+    category = request.args.get('category', '')
+    
+    # Základný SQL
+    where_conditions = []
+    
+    if search:
+        where_conditions.append(f"t.MerchantName LIKE '%{search}%'")
+    
+    if category:
+        where_conditions.append(f"c.Name = '{category}'")
+    
+    where_clause = ""
+    if where_conditions:
+        where_clause = "WHERE " + " AND ".join(where_conditions)
     
     sql = f"""
     SELECT 
@@ -476,6 +491,7 @@ def transactions_list():
     FROM Transactions t
     LEFT JOIN Categories c ON t.CategoryID = c.CategoryID
     LEFT JOIN Accounts a ON t.AccountID = a.AccountID
+    {where_clause}
     ORDER BY t.TransactionDate DESC
     LIMIT {limit} OFFSET {offset};
     """

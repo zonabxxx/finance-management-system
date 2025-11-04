@@ -218,11 +218,7 @@
                 <input type="text" id="search-merchant" placeholder="🔍 Hľadať obchodníka...">
                 <select id="filter-category">
                     <option value="">Všetky kategórie</option>
-                    <option value="Potraviny">Potraviny</option>
-                    <option value="Káva">Káva</option>
-                    <option value="Reštaurácie">Reštaurácie</option>
-                    <option value="Doprava">Doprava</option>
-                    <option value="Drogéria">Drogéria</option>
+                    <!-- Dynamicky načítané kategórie -->
                 </select>
                 <button onclick="loadTransactions()">Filtrovať</button>
                 <button onclick="exportCSV()">📥 Export CSV</button>
@@ -265,6 +261,19 @@
                 const response = await fetch('/api/categories/list');
                 const data = await response.json();
                 allCategories = data.categories || [];
+                
+                // Naplň dropdown
+                const select = document.getElementById('filter-category');
+                select.innerHTML = '<option value="">Všetky kategórie</option>';
+                allCategories.forEach(cat => {
+                    const id = cat.CategoryID || cat.CATEGORYID;
+                    const name = cat.Name || cat.NAME;
+                    const icon = cat.Icon || cat.ICON || '';
+                    const option = document.createElement('option');
+                    option.value = name; // Filtrujeme podľa názvu
+                    option.textContent = `${icon} ${name}`;
+                    select.appendChild(option);
+                });
             } catch (error) {
                 console.error('Chyba pri načítaní kategórií:', error);
             }
@@ -272,11 +281,25 @@
 
         async function loadTransactions() {
             const tbody = document.getElementById('transactions-tbody');
-            tbody.innerHTML = '<tr><td colspan="6" class="loading">Načítavam...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="loading">Načítavam...</td></tr>';
 
             try {
                 const offset = currentPage * limit;
-                const response = await fetch(`/api/transactions/list?limit=${limit}&offset=${offset}`);
+                
+                // Získaj filter hodnoty
+                const searchMerchant = document.getElementById('search-merchant').value.trim();
+                const filterCategory = document.getElementById('filter-category').value;
+                
+                // Postav URL s parametrami
+                let url = `/api/transactions/list?limit=${limit}&offset=${offset}`;
+                if (searchMerchant) {
+                    url += `&search=${encodeURIComponent(searchMerchant)}`;
+                }
+                if (filterCategory) {
+                    url += `&category=${encodeURIComponent(filterCategory)}`;
+                }
+                
+                const response = await fetch(url);
                 const data = await response.json();
 
                 console.log('Transactions data:', data);
