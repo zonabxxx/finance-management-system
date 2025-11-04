@@ -11,6 +11,7 @@ import json
 import re
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
+from smart_categorizer import SmartCategorizer
 
 load_dotenv()
 
@@ -19,6 +20,16 @@ CORS(app)
 
 # Povoľ všetky Content-Types pre webhooky
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
+
+# Inicializuj Smart Categorizer
+smart_categorizer = None
+
+def get_smart_categorizer():
+    """Lazy init Smart Categorizer"""
+    global smart_categorizer
+    if smart_categorizer is None:
+        smart_categorizer = SmartCategorizer(turso_query)
+    return smart_categorizer
 
 # Turso database connection via HTTP API
 TURSO_DATABASE_URL = os.getenv('TURSO_DATABASE_URL', '')
@@ -352,6 +363,14 @@ def update_transaction_category(transaction_id):
     result = turso_query(sql)
     
     if result["success"]:
+        # Learn from manual assignment (if category was set, not removed)
+        if category_id is not None:
+            try:
+                categorizer = get_smart_categorizer()
+                categorizer.learn_from_manual_assignment(transaction_id, category_id)
+            except Exception as e:
+                print(f"Learning failed: {e}")
+        
         return jsonify({"success": True, "message": "Kategória transakcie aktualizovaná"})
     else:
         return jsonify({"error": result["error"]}), 500
@@ -1201,9 +1220,7 @@ def receive_email():
         result = turso_query(insert_query)
         
         if result:
-            print(f"   ✅ Transaction saved to database")
-            
-            # Automatická kategorizácia
+            print(f"   ✅ Transaction saved to database")            # 🧠 Smart Categorization with Learning + AI
             try:
                 # Získaj ID novo vytvorenej transakcie
                 last_id_query = "SELECT TransactionID FROM Transactions ORDER BY TransactionID DESC LIMIT 1;"
@@ -1212,85 +1229,22 @@ def receive_email():
                 if last_id_result and 'rows' in last_id_result and len(last_id_result['rows']) > 0:
                     transaction_id = int(last_id_result['rows'][0][0]['value'])
                     
-                    # Jednoduchá kategorizácia podľa kľúčových slov
-                    category_id = None
-                    merchant_lower = merchant.lower()
+                    # Použij Smart Categorizer
+                    categorizer = get_smart_categorizer()
+                    category_id = categorizer.categorize(merchant, description, amount)
                     
-                    # Načítaj kategórie
-                    categories_query = "SELECT CategoryID, Name FROM Categories;"
-                    categories_result = turso_query(categories_query)
-                    
-                    if categories_result and 'rows' in categories_result:
-                        categories_map = {}
-                        for row in categories_result['rows']:
-                            cat_id = int(row[0]['value'])
-                            cat_name = row[1]['value'].lower()
-                            categories_map[cat_name] = cat_id
-                        
-                        # **1. Príjem - ak je Amount > 0**
-                        if amount > 0:
-                            # Hľadaj kategóriu "Príjem" alebo "Príjmy"
-                            if 'príjem' in categories_map:
-                                category_id = categories_map['príjem']
-                                print(f"   💰 Income detected, auto-categorized as 'Príjem'")
-                            elif 'príjmy' in categories_map:
-                                category_id = categories_map['príjmy']
-                                print(f"   💰 Income detected, auto-categorized as 'Príjmy'")
-                            else:
-                                # Vytvor kategóriu "Príjem" ak neexistuje
-                                create_cat_query = """
-                                INSERT INTO Categories (Name, Icon, Color, CreatedAt)
-                                VALUES ('Príjem', '💰', '#10b981', datetime('now'))
-                                """
-                                turso_query(create_cat_query)
-                                
-                                # Získaj ID novej kategórie
-                                new_cat_result = turso_query("SELECT CategoryID FROM Categories WHERE Name = 'Príjem' LIMIT 1;")
-                                if new_cat_result and 'rows' in new_cat_result and len(new_cat_result['rows']) > 0:
-                                    category_id = int(new_cat_result['rows'][0][0]['value'])
-                                    print(f"   ✨ Created 'Príjem' category, CategoryID={category_id}")
-                        
-                        # **2. Výdavky - kategorizuj podľa merchanta**
-                        else:
-                            # Kľúčové slová pre kategórie
-                            keywords = {
-                                'bolt': ['bolt', 'uber', 'taxi'],
-                                'jedlo': ['pizza', 'burger', 'restaurant', 'kfc', 'mcdonalds', 'food', 'wolt'],
-                                'potraviny': ['tesco', 'kaufland', 'lidl', 'billa', 'coop'],
-                                'doprava': ['slovnaft', 'shell', 'omv', 'parking', 'mhd'],
-                            }
-                            
-                            # Hľadaj kategóriu podľa názvu a kľúčových slov
-                            for cat_name_lower, cat_id in categories_map.items():
-                                # Match podľa názvu kategórie v merchantovi
-                                if cat_name_lower in merchant_lower:
-                                    category_id = cat_id
-                                    break
-                                
-                                # Match podľa kľúčových slov
-                                for keyword_group, keywords_list in keywords.items():
-                                    if keyword_group in cat_name_lower:
-                                        for keyword in keywords_list:
-                                            if keyword in merchant_lower:
-                                                category_id = cat_id
-                                                break
-                                        if category_id:
-                                            break
-                                
-                                if category_id:
-                                    break
-                        
-                        # Ak našli kategóriu, priradíme ju
-                        if category_id:
-                            update_query = f"""
-                            UPDATE Transactions 
-                            SET CategoryID = {category_id}, CategorySource = 'Auto'
-                            WHERE TransactionID = {transaction_id};
-                            """
-                            turso_query(update_query)
-                            print(f"   🤖 Auto-categorized: CategoryID={category_id}")
+                    # Ak našiel kategóriu, priradíme ju
+                    if category_id:
+                        update_query = f"""
+                        UPDATE Transactions 
+                        SET CategoryID = {category_id}, CategorySource = 'Auto'
+                        WHERE TransactionID = {transaction_id};
+                        """
+                        turso_query(update_query)
+                        print(f"   ✅ Smart categorized: CategoryID={category_id}")
             except Exception as e:
                 print(f"   ⚠️  Auto-categorization failed: {e}")
+
             
             return jsonify({
                 'status': 'success',
