@@ -359,9 +359,13 @@
 
             data.slice(0, 5).forEach(row => {
                 // API vracia: category, amount, icon, color
-                labels.push((row.icon || '') + ' ' + (row.category || 'Nezaradené'));
+                // Ošetrenie pre Turso HTTP API formát (môže vrátiť {type: "null"})
+                const icon = (row.icon && typeof row.icon === 'string') ? row.icon : '';
+                const color = (row.color && typeof row.color === 'string') ? row.color : '#667eea';
+                
+                labels.push(icon + (icon ? ' ' : '') + (row.category || 'Nezaradené'));
                 values.push(Math.abs(parseFloat(row.amount || 0)));
-                colors.push(row.color || '#667eea');
+                colors.push(color);
             });
 
             const ctx = document.getElementById('categoryChart').getContext('2d');
