@@ -7,6 +7,9 @@ flask==3.0.0
 flask-cors==4.0.0
 gunicorn==21.2.0
 
+# Email processing (pre worker.py)
+# Note: imaplib, email sú built-in Python moduly, nepotrebujú sa instalovať
+
 # AI/ML
 openai==1.12.0
 
