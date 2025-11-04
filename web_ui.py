@@ -17,6 +17,9 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
+# Povoľ všetky Content-Types pre webhooky
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
+
 # Turso database connection via HTTP API
 TURSO_DATABASE_URL = os.getenv('TURSO_DATABASE_URL', '')
 TURSO_AUTH_TOKEN = os.getenv('TURSO_AUTH_TOKEN', '')
@@ -1064,33 +1067,41 @@ def receive_email():
     """
     try:
         # CloudMailin môže posielať rôzne Content-Types
-        # Skús JSON, form data, alebo raw data
+        # Získaj raw data a spracuj podľa formátu
         data = None
+        email_body = None
         
-        if request.is_json:
-            data = request.json
-        elif request.form:
-            # Multipart form data (CloudMailin Normalized)
+        # Debug: loguj čo prišlo
+        print(f"📧 Received request")
+        print(f"   Content-Type: {request.content_type}")
+        print(f"   Method: {request.method}")
+        
+        # 1. Skús form data (CloudMailin Multipart-Normalized)
+        if request.form:
+            print("   Format: Form data")
+            email_body = request.form.get('plain', '') or request.form.get('html', '')
             data = {
-                'plain': request.form.get('plain', ''),
-                'html': request.form.get('html', ''),
-                'headers': {},
-                'envelope': {
-                    'from': request.form.get('envelope[from]', 'unknown')
-                }
+                'envelope': {'from': request.form.get('envelope[from]', 'unknown')},
+                'headers': {'Subject': request.form.get('headers[Subject]', 'no subject')}
             }
+        
+        # 2. Skús JSON
+        elif request.is_json or 'json' in request.content_type.lower():
+            print("   Format: JSON")
+            data = request.get_json(force=True)
+            email_body = data.get('plain', '') or data.get('html', '')
+        
+        # 3. Fallback - skús parsovať ako JSON
         else:
-            # Skús get raw data
+            print("   Format: Unknown, trying to parse...")
             try:
-                data = request.get_json(force=True)
+                import json
+                data = json.loads(request.get_data(as_text=True))
+                email_body = data.get('plain', '') or data.get('html', '')
             except:
-                return jsonify({'error': 'Unable to parse request data'}), 400
-        
-        if not data:
-            return jsonify({'error': 'No data received'}), 400
-        
-        # Email body (plain text)
-        email_body = data.get('plain', '') or data.get('html', '')
+                # Možno to je raw text
+                email_body = request.get_data(as_text=True)
+                data = {'envelope': {}, 'headers': {}}
         
         if not email_body:
             return jsonify({'error': 'Empty email body'}), 400
