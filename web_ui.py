@@ -1047,3 +1047,139 @@ def sync_emails():
             'error': 'Sync failed',
             'message': str(e)
         }), 500
+
+
+# ============================================================================
+# CLOUDMAILIN WEBHOOK - Príjem B-mailov priamo z Tatra banky
+# ============================================================================
+
+@app.route('/api/receive-email', methods=['POST'])
+def receive_email():
+    """
+    CloudMailin webhook endpoint
+    Tatra banka → CloudMailin → Railway
+    
+    CloudMailin posiela JSON:
+    {
+      "plain": "email body text...",
+      "html": "<html>...",
+      "headers": {...},
+      "envelope": {...}
+    }
+    """
+    try:
+        # CloudMailin posiela JSON payload
+        data = request.json
+        
+        if not data:
+            return jsonify({'error': 'No data received'}), 400
+        
+        # Email body (plain text)
+        email_body = data.get('plain', '') or data.get('html', '')
+        
+        if not email_body:
+            return jsonify({'error': 'Empty email body'}), 400
+        
+        # Loguj príchod emailu
+        print(f"📧 Received email from CloudMailin")
+        print(f"   From: {data.get('envelope', {}).get('from', 'unknown')}")
+        print(f"   Subject: {data.get('headers', {}).get('Subject', 'no subject')}")
+        
+        # Parsovanie B-mail transakcie
+        main_match = re.search(
+            r'(\d{1,2}\.\d{1,2}\.\d{4})\s+(\d{1,2}:\d{2})\s+bol zostatok.*?'
+            r'(SK\d+)\s+(znizeny|zvyseny)\s+o\s+([\d,]+)\s*EUR',
+            email_body
+        )
+        
+        if not main_match:
+            print("   ⚠️  Not a B-mail transaction (ignoring)")
+            return jsonify({'status': 'ignored', 'message': 'Not a B-mail transaction'}), 200
+        
+        # Extrahovanie údajov
+        date_str = f"{main_match.group(1)} {main_match.group(2)}"
+        trans_date = datetime.strptime(date_str, "%d.%m.%Y %H:%M")
+        iban = main_match.group(3)
+        amount_str = main_match.group(5).replace(',', '.')
+        amount = float(amount_str)
+        if main_match.group(4) == 'znizeny':
+            amount = -amount
+        
+        # Popis transakcie
+        desc_match = re.search(r'Popis transakcie:\s*(.+?)(?:\n|$)', email_body)
+        description = desc_match.group(1).strip() if desc_match else ''
+        
+        # Obchodník
+        merchant = 'Unknown'
+        payment_method = 'Other'
+        
+        if 'Platba kartou' in description:
+            payment_method = 'Card'
+            merchant_match = re.search(r',\s*([A-Z0-9\.\-]+)', description)
+            if merchant_match:
+                merchant_raw = merchant_match.group(1).strip('.')
+                merchant = re.sub(r'\.?[A-Z]{3}\d+$', '', merchant_raw) or merchant_raw
+        elif 'Prevod' in description or 'Prikaz' in description:
+            payment_method = 'Transfer'
+            merchant = description
+        else:
+            merchant = description
+        
+        print(f"   💰 Amount: {amount} EUR")
+        print(f"   🏪 Merchant: {merchant}")
+        
+        # Nájdenie AccountID
+        account_query = f"SELECT AccountID FROM Accounts WHERE IBAN = '{iban}' AND IsActive = 1 LIMIT 1;"
+        account_result = turso_query(account_query)
+        account_id = None
+        
+        if account_result and 'rows' in account_result and len(account_result['rows']) > 0:
+            account_id = int(account_result['rows'][0][0]['value'])
+            print(f"   🏦 Account: {account_id}")
+        else:
+            print(f"   ⚠️  Account with IBAN {iban} not found in Settings")
+        
+        account_id_sql = str(account_id) if account_id else 'NULL'
+        
+        # Uloženie do databázy
+        insert_query = f"""
+        INSERT INTO Transactions (
+            TransactionDate, Amount, Currency, MerchantName, Description,
+            IBAN, TransactionType, PaymentMethod, RawEmailData,
+            CategorySource, AccountID, CreatedAt
+        ) VALUES (
+            '{trans_date.isoformat()}', {amount}, 'EUR',
+            '{merchant.replace("'", "''")}', '{description.replace("'", "''")}',
+            '{iban}', '{'Debit' if amount < 0 else 'Credit'}', '{payment_method}',
+            '{email_body.replace("'", "''")}', 'Email', {account_id_sql},
+            '{datetime.now().isoformat()}'
+        );
+        """
+        
+        result = turso_query(insert_query)
+        
+        if result:
+            print(f"   ✅ Transaction saved to database")
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Transaction processed',
+                'transaction': {
+                    'merchant': merchant,
+                    'amount': amount,
+                    'date': trans_date.isoformat()
+                }
+            }), 200
+        else:
+            print(f"   ❌ Failed to save transaction")
+            return jsonify({
+                'status': 'error',
+                'message': 'Failed to save transaction'
+            }), 500
+    
+    except Exception as e:
+        print(f"❌ Error processing email: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
