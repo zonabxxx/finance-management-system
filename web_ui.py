@@ -860,14 +860,34 @@ def gpt_search_transactions():
     if result["success"]:
         # Debug: log search results
         print(f"🔍 GPT Search: Found {len(result['data'])} transactions")
-        for i, tx in enumerate(result["data"][:3]):  # First 3
+        
+        # Format results to make TransactionID more explicit
+        formatted_results = []
+        for i, tx in enumerate(result["data"]):
             tx_id = tx.get('TransactionID') or tx.get('transactionid')
             merchant = tx.get('MerchantName') or tx.get('merchantname')
-            print(f"   [{i}] TransactionID={tx_id}, Merchant={merchant}")
+            
+            # Create clean object with explicit ID
+            formatted_tx = {
+                "transaction_id": tx_id,  # Use snake_case to match bulk-categorize input!
+                "TransactionID": tx_id,   # Also keep original
+                "TransactionDate": tx.get('TransactionDate') or tx.get('transactiondate'),
+                "Amount": tx.get('Amount') or tx.get('amount'),
+                "Currency": tx.get('Currency') or tx.get('currency'),
+                "MerchantName": merchant,
+                "Description": tx.get('Description') or tx.get('description'),
+                "CategoryName": tx.get('CategoryName') or tx.get('categoryname'),
+                "CategoryIcon": tx.get('CategoryIcon') or tx.get('categoryicon'),
+                "AccountName": tx.get('AccountName') or tx.get('accountname')
+            }
+            formatted_results.append(formatted_tx)
+            
+            if i < 3:  # Log first 3
+                print(f"   [{i}] transaction_id={tx_id}, TransactionID={tx_id}, Merchant={merchant}")
         
         return jsonify({
-            "results": result["data"],
-            "count": len(result["data"])
+            "results": formatted_results,
+            "count": len(formatted_results)
         })
     else:
         return jsonify({"error": result.get("error", "Query failed")}), 500

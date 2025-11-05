@@ -114,7 +114,8 @@
                       "items": {
                         "type": "object",
                         "properties": {
-                          "TransactionID": {"type": "integer", "description": "ID transakcie - POUŽI TOTO pre bulk-categorize!"},
+                          "transaction_id": {"type": "integer", "description": "ID transakcie (snake_case) - POUŽI TOTO!"},
+                          "TransactionID": {"type": "integer", "description": "ID transakcie (PascalCase) - tiež OK"},
                           "TransactionDate": {"type": "string"},
                           "Amount": {"type": "number"},
                           "Currency": {"type": "string"},
@@ -123,7 +124,8 @@
                           "CategoryName": {"type": "string"},
                           "CategoryIcon": {"type": "string"},
                           "AccountName": {"type": "string"}
-                        }
+                        },
+                        "required": ["transaction_id", "TransactionID"]
                       }
                     },
                     "count": {"type": "integer"}
