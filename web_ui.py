@@ -944,15 +944,17 @@ def gpt_bulk_categorize():
         categories_query = "SELECT CategoryID, Name FROM Categories;"
         categories_result = turso_query(categories_query)
         
-        if not categories_result or 'rows' not in categories_result:
-            return jsonify({"error": "Failed to load categories"}), 500
+        if not categories_result or not categories_result.get('success') or not categories_result.get('data'):
+            return jsonify({"error": "Failed to load categories", "debug": str(categories_result)}), 500
         
         # Mapuj názvy kategórií na ID
         category_map = {}
-        for row in categories_result['rows']:
-            cat_id = int(row[0]['value'])
-            cat_name = row[1]['value'].lower()
-            category_map[cat_name] = cat_id
+        for row in categories_result['data']:
+            # turso_query vracia 'data' array s row_dict objektami
+            cat_id = row.get('CategoryID') or row.get('categoryid')
+            cat_name = (row.get('Name') or row.get('name', '')).lower()
+            if cat_id and cat_name:
+                category_map[cat_name] = int(cat_id)
         
         updated_count = 0
         learned_rules = 0
