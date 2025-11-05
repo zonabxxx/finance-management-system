@@ -913,14 +913,6 @@ def gpt_get_account_summary(account_id):
     })
 
 
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 3000))
-    
-    print("=" * 60)
-    print("🎨 Finance Dashboard UI")
-    print("=" * 60)
-
-
 # ============================================================================
 # GPT BULK CATEGORIZATION - ChatGPT agent môže kategorizovať hromadne
 # ============================================================================
@@ -1023,6 +1015,14 @@ def gpt_bulk_categorize():
     
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 3000))
+    
+    print("=" * 60)
+    print("🎨 Finance Dashboard UI")
+    print("=" * 60)
     print(f"🌐 Dashboard: http://0.0.0.0:{port}")
     print(f"📊 Transakcie: http://0.0.0.0:{port}/transactions")
     print(f"📧 Sync Emails: POST http://0.0.0.0:{port}/api/sync-emails")
