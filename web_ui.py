@@ -532,6 +532,14 @@ def transactions_list():
     
     result = turso_query(sql)
     
+    # Debug: log first transaction if any
+    if result["success"] and result["data"]:
+        print(f"📊 Transactions API: Returning {len(result['data'])} transactions")
+        if len(result["data"]) > 0:
+            first = result["data"][0]
+            print(f"   First transaction keys: {list(first.keys())[:5]}")
+            print(f"   TransactionID: {first.get('TransactionID')} / {first.get('transactionid')}")
+    
     return jsonify({
         "transactions": result["data"] if result["success"] else [],
         "limit": int(limit),
