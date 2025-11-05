@@ -109,6 +109,62 @@
         "summary": "Zoznam všetkých kategórií výdavkov",
         "responses": {"200": {"description": "Kategórie"}}
       }
+    },
+    "/api/gpt/transactions/bulk-categorize": {
+      "post": {
+        "operationId": "bulkCategorizeTransactions",
+        "summary": "Hromadná kategorizácia transakcií - GPT môže meniť kategórie viacerých transakcií naraz",
+        "description": "Umožňuje ChatGPT agentovi kategorizovať viaceré transakcie naraz. Systém sa automaticky učí z týchto priradení.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "updates": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "transaction_id": {"type": "integer", "description": "ID transakcie"},
+                        "category_name": {"type": "string", "description": "Názov kategórie (môže obsahovať emoji)"}
+                      },
+                      "required": ["transaction_id", "category_name"]
+                    }
+                  }
+                },
+                "required": ["updates"]
+              },
+              "example": {
+                "updates": [
+                  {"transaction_id": 123, "category_name": "Potraviny"},
+                  {"transaction_id": 124, "category_name": "Zdravie a lieky 💊"}
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Kategorizácia úspešná",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {"type": "boolean"},
+                    "updated": {"type": "integer", "description": "Počet aktualizovaných transakcií"},
+                    "learned_rules": {"type": "integer", "description": "Počet naučených pravidiel"},
+                    "total_requested": {"type": "integer"},
+                    "errors": {"type": "array", "items": {"type": "string"}}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

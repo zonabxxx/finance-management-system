@@ -919,6 +919,110 @@ if __name__ == '__main__':
     print("=" * 60)
     print("🎨 Finance Dashboard UI")
     print("=" * 60)
+
+
+# ============================================================================
+# GPT BULK CATEGORIZATION - ChatGPT agent môže kategorizovať hromadne
+# ============================================================================
+
+@app.route('/api/gpt/transactions/bulk-categorize', methods=['POST'])
+def gpt_bulk_categorize():
+    """
+    GPT: Hromadná kategorizácia transakcií
+    
+    Body:
+    {
+      "updates": [
+        {"transaction_id": 123, "category_name": "Potraviny"},
+        {"transaction_id": 124, "category_name": "Zdravie a lieky"}
+      ]
+    }
+    """
+    if not verify_gpt_api_key():
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    try:
+        data = request.json
+        updates = data.get('updates', [])
+        
+        if not updates:
+            return jsonify({"error": "No updates provided"}), 400
+        
+        # Načítaj kategórie
+        categories_query = "SELECT CategoryID, Name FROM Categories;"
+        categories_result = turso_query(categories_query)
+        
+        if not categories_result or 'rows' not in categories_result:
+            return jsonify({"error": "Failed to load categories"}), 500
+        
+        # Mapuj názvy kategórií na ID
+        category_map = {}
+        for row in categories_result['rows']:
+            cat_id = int(row[0]['value'])
+            cat_name = row[1]['value'].lower()
+            category_map[cat_name] = cat_id
+        
+        updated_count = 0
+        learned_rules = 0
+        errors = []
+        
+        for update in updates:
+            transaction_id = update.get('transaction_id')
+            category_name = update.get('category_name', '').lower().strip()
+            
+            # Odstráň emoji z názvu kategórie
+            import re
+            category_name_clean = re.sub(r'[^\w\s\-áäčďéíĺľňóôŕšťúýžÁÄČĎÉÍĹĽŇÓÔŔŠŤÚÝŽ]', '', category_name).strip()
+            
+            if not transaction_id or not category_name_clean:
+                errors.append(f"Invalid update: {update}")
+                continue
+            
+            # Nájdi CategoryID (flexible matching)
+            category_id = None
+            for cat_name_lower, cat_id in category_map.items():
+                if cat_name_lower in category_name_clean or category_name_clean in cat_name_lower:
+                    category_id = cat_id
+                    break
+            
+            if not category_id:
+                errors.append(f"Category not found: {category_name}")
+                continue
+            
+            # Updatuj transakciu
+            update_query = f"""
+            UPDATE Transactions 
+            SET CategoryID = {category_id}, 
+                CategorySource = 'GPT',
+                UpdatedAt = datetime('now')
+            WHERE TransactionID = {transaction_id};
+            """
+            
+            result = turso_query(update_query)
+            
+            if result and result.get('success'):
+                updated_count += 1
+                
+                # Learn from this assignment
+                try:
+                    categorizer = get_smart_categorizer()
+                    categorizer.learn_from_manual_assignment(transaction_id, category_id)
+                    learned_rules += 1
+                except Exception as e:
+                    print(f"Learning failed for transaction {transaction_id}: {e}")
+            else:
+                errors.append(f"Failed to update transaction {transaction_id}")
+        
+        return jsonify({
+            "success": True,
+            "updated": updated_count,
+            "learned_rules": learned_rules,
+            "total_requested": len(updates),
+            "errors": errors if errors else None
+        })
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
     print(f"🌐 Dashboard: http://0.0.0.0:{port}")
     print(f"📊 Transakcie: http://0.0.0.0:{port}/transactions")
     print(f"📧 Sync Emails: POST http://0.0.0.0:{port}/api/sync-emails")
