@@ -92,7 +92,7 @@
       "get": {
         "operationId": "searchTransactions",
         "summary": "Vyhľadávanie transakcií podľa filtrov",
-        "description": "Vráti zoznam transakcií. Každá transakcia má field TransactionID ktorý musíš použiť pre bulk-categorize!",
+        "description": "DÔLEŽITÉ: Každá transakcia v results[] má pole 'transaction_id' (alebo 'TransactionID'). Toto ID MUSÍŠ použiť v bulk-categorize! NIKDY NEPOUŽÍVAJ array index (0,1,2...)!",
         "parameters": [
           {"name": "merchant", "in": "query", "schema": {"type": "string"}, "description": "Názov obchodníka"},
           {"name": "category", "in": "query", "schema": {"type": "string"}, "description": "Kategória"},
@@ -103,7 +103,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Výsledky vyhľadávania",
+            "description": "Výsledky vyhľadávania. VŽDY čítaj transaction_id z každého objektu!",
             "content": {
               "application/json": {
                 "schema": {
@@ -111,24 +111,48 @@
                   "properties": {
                     "results": {
                       "type": "array",
+                      "description": "Zoznam transakcií. NIKDY nepoužívaj array index! Vždy použi pole transaction_id z objektu!",
                       "items": {
                         "type": "object",
                         "properties": {
-                          "transaction_id": {"type": "integer", "description": "ID transakcie (snake_case) - POUŽI TOTO!"},
-                          "TransactionID": {"type": "integer", "description": "ID transakcie (PascalCase) - tiež OK"},
-                          "TransactionDate": {"type": "string"},
-                          "Amount": {"type": "number"},
-                          "Currency": {"type": "string"},
-                          "MerchantName": {"type": "string"},
+                          "transaction_id": {"type": "integer", "description": "SKUTOČNÉ ID transakcie - POUŽI TOTO pre bulk-categorize!", "example": 23},
+                          "TransactionID": {"type": "integer", "description": "SKUTOČNÉ ID transakcie (alternatívny názov)", "example": 23},
+                          "TransactionDate": {"type": "string", "example": "2025-11-05 10:30:00"},
+                          "Amount": {"type": "number", "example": -15.50},
+                          "Currency": {"type": "string", "example": "EUR"},
+                          "MerchantName": {"type": "string", "example": "BILLA 122"},
                           "Description": {"type": "string"},
-                          "CategoryName": {"type": "string"},
+                          "CategoryName": {"type": "string", "example": "Nezaradené"},
                           "CategoryIcon": {"type": "string"},
                           "AccountName": {"type": "string"}
                         },
                         "required": ["transaction_id", "TransactionID"]
-                      }
+                      },
+                      "example": [
+                        {
+                          "transaction_id": 23,
+                          "TransactionID": 23,
+                          "MerchantName": "BILLA 122",
+                          "Amount": -15.50,
+                          "CategoryName": "Nezaradené"
+                        },
+                        {
+                          "transaction_id": 24,
+                          "TransactionID": 24,
+                          "MerchantName": "Dr.Max 383",
+                          "Amount": -8.20,
+                          "CategoryName": "Nezaradené"
+                        }
+                      ]
                     },
-                    "count": {"type": "integer"}
+                    "count": {"type": "integer", "example": 2}
+                  },
+                  "example": {
+                    "results": [
+                      {"transaction_id": 23, "TransactionID": 23, "MerchantName": "BILLA 122", "Amount": -15.50, "CategoryName": "Nezaradené"},
+                      {"transaction_id": 24, "TransactionID": 24, "MerchantName": "Dr.Max 383", "Amount": -8.20, "CategoryName": "Nezaradené"}
+                    ],
+                    "count": 2
                   }
                 }
               }
