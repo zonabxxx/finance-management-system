@@ -63,11 +63,22 @@ def turso_query(sql: str):
             
             # Parse response
             if result.get('results') and len(result['results']) > 0:
-                query_result = result['results'][0]['response']['result']
+                response_obj = result['results'][0]['response']
+                
+                # Check for errors
+                if response_obj.get('type') == 'error':
+                    error_msg = response_obj.get('error', {}).get('message', 'Unknown error')
+                    print(f"❌ Turso error: {error_msg}")
+                    return {"success": False, "error": error_msg, "data": []}
+                
+                query_result = response_obj.get('result', {})
                 
                 # Extract columns and rows
                 columns = [col['name'] for col in query_result.get('cols', [])]
                 rows = query_result.get('rows', [])
+                
+                # For UPDATE/INSERT/DELETE, check affected_row_count
+                affected_rows = query_result.get('affected_row_count', 0)
                 
                 # Convert to dict format
                 data = []
@@ -94,9 +105,13 @@ def turso_query(sql: str):
                         row_dict[col_name.lower()] = row_dict[col_name]
                     data.append(row_dict)
                 
-                return {"success": True, "data": data}
+                return {
+                    "success": True, 
+                    "data": data,
+                    "affected_rows": affected_rows
+                }
             else:
-                return {"success": True, "data": []}
+                return {"success": True, "data": [], "affected_rows": 0}
         else:
             print(f"❌ Database error: {response.status_code} - {response.text}")
             return {"success": False, "error": f"HTTP {response.status_code}", "data": []}
@@ -995,17 +1010,24 @@ def gpt_bulk_categorize():
             result = turso_query(update_query)
             
             if result and result.get('success'):
-                updated_count += 1
-                
-                # Learn from this assignment
-                try:
-                    categorizer = get_smart_categorizer()
-                    categorizer.learn_from_manual_assignment(transaction_id, category_id)
-                    learned_rules += 1
-                except Exception as e:
-                    print(f"Learning failed for transaction {transaction_id}: {e}")
+                affected = result.get('affected_rows', 0)
+                if affected > 0:
+                    updated_count += 1
+                    print(f"   ✅ Updated transaction {transaction_id} → CategoryID={category_id}")
+                    
+                    # Learn from this assignment
+                    try:
+                        categorizer = get_smart_categorizer()
+                        categorizer.learn_from_manual_assignment(transaction_id, category_id)
+                        learned_rules += 1
+                    except Exception as e:
+                        print(f"Learning failed for transaction {transaction_id}: {e}")
+                else:
+                    errors.append(f"Transaction {transaction_id} not found or not updated")
+                    print(f"   ⚠️  Transaction {transaction_id} not updated (affected_rows=0)")
             else:
                 errors.append(f"Failed to update transaction {transaction_id}")
+                print(f"   ❌ Failed to update transaction {transaction_id}: {result.get('error', 'Unknown')}")
         
         return jsonify({
             "success": True,
