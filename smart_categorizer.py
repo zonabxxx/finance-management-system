@@ -23,7 +23,8 @@ class SmartCategorizer:
         self.openai_api_key = os.getenv('OPENAI_API_KEY')
         self.use_ai = bool(self.openai_api_key)
         
-    def categorize(self, merchant: str, description: str, amount: float) -> Optional[int]:
+    def categorize(self, merchant: str, description: str, amount: float, 
+                   counterparty_purpose: str = '', recipient_info: str = '') -> Optional[int]:
         """
         Hlavná kategorizačná funkcia
         
@@ -31,6 +32,8 @@ class SmartCategorizer:
             merchant: Názov obchodníka
             description: Popis transakcie
             amount: Suma (+ príjem, - výdavok)
+            counterparty_purpose: Účel protistrany (napr. "Mestska cast Bratislava - Petrzalka")
+            recipient_info: Informácia pre príjemcu (napr. "Martinkovychova Livia, 1. trieda")
             
         Returns:
             CategoryID alebo None
@@ -46,7 +49,8 @@ class SmartCategorizer:
         
         # 3. Fallback na OpenAI (ak je enabled)
         if self.use_ai:
-            category_id = self._categorize_with_ai(merchant, description, amount)
+            category_id = self._categorize_with_ai(merchant, description, amount, 
+                                                   counterparty_purpose, recipient_info)
             if category_id:
                 # Ulož ako nové pravidlo
                 self._learn_rule(merchant, category_id, 'AI', 0.8)
@@ -139,7 +143,8 @@ class SmartCategorizer:
         except Exception as e:
             print(f"Error updating rule usage: {e}")
     
-    def _categorize_with_ai(self, merchant: str, description: str, amount: float) -> Optional[int]:
+    def _categorize_with_ai(self, merchant: str, description: str, amount: float,
+                           counterparty_purpose: str = '', recipient_info: str = '') -> Optional[int]:
         """Kategorizuj pomocou OpenAI"""
         try:
             import openai
@@ -161,16 +166,31 @@ class SmartCategorizer:
                 categories_list.append(f"{cat_icon} {cat_name}")
                 categories_map[cat_name.lower()] = cat_id
             
+            # Zostav AI prompt s extra kontextom
+            transaction_info = f"""Transakcia:
+- Obchodník: {merchant}
+- Popis: {description}
+- Suma: {amount} EUR (výdavok)"""
+
+            # Pridaj extra kontextové polia ak existujú
+            if counterparty_purpose:
+                transaction_info += f"\n- Účel protistrany: {counterparty_purpose}"
+            if recipient_info:
+                transaction_info += f"\n- Info pre príjemcu: {recipient_info}"
+            
             # OpenAI prompt
             prompt = f"""Analyzuj túto transakciu a vyber najpravdepodobnejšiu kategóriu.
 
-Transakcia:
-- Obchodník: {merchant}
-- Popis: {description}
-- Suma: {amount} EUR (výdavok)
+{transaction_info}
 
 Dostupné kategórie:
 {chr(10).join(f"- {cat}" for cat in categories_list)}
+
+DÔLEŽITÉ:
+- "Účel protistrany" často obsahuje kľúčové info o type platby
+- Napr. "Mestska cast..." → Dane/Verejné služby
+- "Škola", "trieda" → Vzdelávanie/Školné
+- Využi všetky dostupné informácie!
 
 Odpoveď PRESNE v tomto formáte (iba názov kategórie, bez ikony):
 Kategória: [názov]"""
@@ -178,7 +198,7 @@ Kategória: [názov]"""
             response = openai.ChatCompletion.create(
                 model=os.getenv('OPENAI_MODEL', 'gpt-4o-mini'),
                 messages=[
-                    {"role": "system", "content": "Si expert na kategorizáciu finančných transakcií. Odpovedaj krátko a presne."},
+                    {"role": "system", "content": "Si expert na kategorizáciu finančných transakcií. Využívaš všetky dostupné informácie vrátane účelu protistrany a info pre príjemcu. Odpovedaj krátko a presne."},
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=50,

@@ -1274,6 +1274,14 @@ def receive_email():
         desc_match = re.search(r'Popis transakcie:\s*(.+?)(?:\n|$)', email_body)
         description = desc_match.group(1).strip() if desc_match else ''
         
+        # 🆕 Účel protistrany (dôležité pre AI kategorizáciu!)
+        purpose_match = re.search(r'Ucel protistrany:\s*(.+?)(?:\n|$)', email_body)
+        counterparty_purpose = purpose_match.group(1).strip() if purpose_match else ''
+        
+        # 🆕 Informácia pre príjemcu (môže obsahovať dôležité info)
+        recipient_info_match = re.search(r'Informacia pre prijemcu:\s*(.+?)(?:\n|$)', email_body)
+        recipient_info = recipient_info_match.group(1).strip() if recipient_info_match else ''
+        
         # Obchodník
         merchant = 'Unknown'
         payment_method = 'Other'
@@ -1292,6 +1300,10 @@ def receive_email():
         
         print(f"   💰 Amount: {amount} EUR")
         print(f"   🏪 Merchant: {merchant}")
+        if counterparty_purpose:
+            print(f"   🎯 Purpose: {counterparty_purpose}")
+        if recipient_info:
+            print(f"   📝 Recipient Info: {recipient_info}")
         
         # Nájdenie AccountID
         account_query = f"SELECT AccountID FROM Accounts WHERE IBAN = '{iban}' AND IsActive = 1 LIMIT 1;"
@@ -1333,9 +1345,15 @@ def receive_email():
                 if last_id_result and 'rows' in last_id_result and len(last_id_result['rows']) > 0:
                     transaction_id = int(last_id_result['rows'][0][0]['value'])
                     
-                    # Použij Smart Categorizer
+                    # Použij Smart Categorizer s extra kontextom
                     categorizer = get_smart_categorizer()
-                    category_id = categorizer.categorize(merchant, description, amount)
+                    category_id = categorizer.categorize(
+                        merchant=merchant, 
+                        description=description, 
+                        amount=amount,
+                        counterparty_purpose=counterparty_purpose,
+                        recipient_info=recipient_info
+                    )
                     
                     # Ak našiel kategóriu, priradíme ju
                     if category_id:
