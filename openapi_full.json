@@ -92,6 +92,7 @@
       "get": {
         "operationId": "searchTransactions",
         "summary": "Vyhľadávanie transakcií podľa filtrov",
+        "description": "Vráti zoznam transakcií. Každá transakcia má field TransactionID ktorý musíš použiť pre bulk-categorize!",
         "parameters": [
           {"name": "merchant", "in": "query", "schema": {"type": "string"}, "description": "Názov obchodníka"},
           {"name": "category", "in": "query", "schema": {"type": "string"}, "description": "Kategória"},
@@ -100,7 +101,38 @@
           {"name": "account_id", "in": "query", "schema": {"type": "integer"}, "description": "Filter podľa účtu"},
           {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 50}, "description": "Počet výsledkov"}
         ],
-        "responses": {"200": {"description": "Výsledky vyhľadávania"}}
+        "responses": {
+          "200": {
+            "description": "Výsledky vyhľadávania",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "TransactionID": {"type": "integer", "description": "ID transakcie - POUŽI TOTO pre bulk-categorize!"},
+                          "TransactionDate": {"type": "string"},
+                          "Amount": {"type": "number"},
+                          "Currency": {"type": "string"},
+                          "MerchantName": {"type": "string"},
+                          "Description": {"type": "string"},
+                          "CategoryName": {"type": "string"},
+                          "CategoryIcon": {"type": "string"},
+                          "AccountName": {"type": "string"}
+                        }
+                      }
+                    },
+                    "count": {"type": "integer"}
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/gpt/categories/list": {
