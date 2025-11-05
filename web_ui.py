@@ -858,6 +858,13 @@ def gpt_search_transactions():
     result = turso_query(sql)
     
     if result["success"]:
+        # Debug: log search results
+        print(f"🔍 GPT Search: Found {len(result['data'])} transactions")
+        for i, tx in enumerate(result["data"][:3]):  # First 3
+            tx_id = tx.get('TransactionID') or tx.get('transactionid')
+            merchant = tx.get('MerchantName') or tx.get('merchantname')
+            print(f"   [{i}] TransactionID={tx_id}, Merchant={merchant}")
+        
         return jsonify({
             "results": result["data"],
             "count": len(result["data"])
