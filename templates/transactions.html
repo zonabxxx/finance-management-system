@@ -308,17 +308,35 @@
 
                 if (data.transactions && data.transactions.length > 0) {
                     data.transactions.forEach(transaction => {
-                        const id = transaction.TransactionID || transaction.TRANSACTIONID;
-                        const date = transaction.TransactionDate || transaction.TRANSACTIONDATE || '';
-                        const amount = parseFloat(transaction.Amount || transaction.AMOUNT || 0);
-                        const currency = transaction.Currency || transaction.CURRENCY || 'EUR';
-                        const merchant = transaction.MerchantName || transaction.MERCHANTNAME || 'Neznámy';
-                        const description = transaction.Description || transaction.DESCRIPTION || '';
-                        const paymentMethod = transaction.PaymentMethod || transaction.PAYMENTMETHOD || 'N/A';
-                        const category = transaction.CategoryName || transaction.CATEGORYNAME || 'Nezaradené';
-                        const accountName = transaction.AccountName || transaction.ACCOUNTNAME || 'Nepriradený';
-                        const bankName = transaction.BankName || transaction.BANKNAME || '';
+                        // Handle both uppercase and lowercase, and extract from dict if needed
+                        const extractValue = (obj, ...keys) => {
+                            for (let key of keys) {
+                                let val = obj[key];
+                                // If value is a dict with 'value' key, extract it
+                                if (val && typeof val === 'object' && 'value' in val) {
+                                    val = val.value;
+                                }
+                                if (val !== undefined && val !== null) return val;
+                            }
+                            return null;
+                        };
+                        
+                        const id = extractValue(transaction, 'TransactionID', 'transactionid', 'TRANSACTIONID');
+                        const date = extractValue(transaction, 'TransactionDate', 'transactiondate', 'TRANSACTIONDATE') || '';
+                        const amount = parseFloat(extractValue(transaction, 'Amount', 'amount', 'AMOUNT') || 0);
+                        const currency = extractValue(transaction, 'Currency', 'currency', 'CURRENCY') || 'EUR';
+                        const merchant = extractValue(transaction, 'MerchantName', 'merchantname', 'MERCHANTNAME') || 'Neznámy';
+                        const description = extractValue(transaction, 'Description', 'description', 'DESCRIPTION') || '';
+                        const paymentMethod = extractValue(transaction, 'PaymentMethod', 'paymentmethod', 'PAYMENTMETHOD') || 'N/A';
+                        const category = extractValue(transaction, 'CategoryName', 'categoryname', 'CATEGORYNAME') || 'Nezaradené';
+                        const accountName = extractValue(transaction, 'AccountName', 'accountname', 'ACCOUNTNAME') || 'Nepriradený';
+                        const bankName = extractValue(transaction, 'BankName', 'bankname', 'BANKNAME') || '';
                         const accountInfo = bankName ? `${accountName} (${bankName})` : accountName;
+                        
+                        // Debug: log first transaction
+                        if (transaction === data.transactions[0]) {
+                            console.log('First transaction ID:', id, '| Merchant:', merchant);
+                        }
 
                         const row = document.createElement('tr');
                         row.innerHTML = `
