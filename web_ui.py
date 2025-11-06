@@ -1396,12 +1396,13 @@ def receive_email():
         INSERT INTO Transactions (
             TransactionDate, Amount, Currency, MerchantName, Description,
             IBAN, TransactionType, PaymentMethod, RawEmailData,
-            CategorySource, AccountID, CreatedAt
+            CategorySource, AccountID, RecipientInfo, CounterpartyPurpose, CreatedAt
         ) VALUES (
             '{trans_date.isoformat()}', {amount}, 'EUR',
             '{merchant.replace("'", "''")}', '{description.replace("'", "''")}',
             '{iban}', '{'Debit' if amount < 0 else 'Credit'}', '{payment_method}',
             '{email_body.replace("'", "''")}', 'Email', {account_id_sql},
+            '{recipient_info.replace("'", "''")}', '{counterparty_purpose.replace("'", "''")}',
             '{datetime.now().isoformat()}'
         );
         """
