@@ -832,7 +832,11 @@ def gpt_search_transactions():
     if account_id:
         conditions.append(f"t.AccountID = {account_id}")
     if category:
-        conditions.append(f"c.Name LIKE '%{category}%'")
+        # Handle "Nezaradené" (NULL CategoryID) specifically
+        if 'nezaradene' in category.lower() or 'nezaradené' in category.lower():
+            conditions.append("(t.CategoryID IS NULL OR COALESCE(c.Name, 'Nezaradené') = 'Nezaradené')")
+        else:
+            conditions.append(f"c.Name LIKE '%{category}%'")
     
     where_clause = " AND ".join(conditions) if conditions else "1=1"
     
