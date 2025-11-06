@@ -848,6 +848,8 @@ def gpt_search_transactions():
         t.Currency,
         t.MerchantName,
         t.Description,
+        t.RecipientInfo,
+        t.CounterpartyPurpose,
         COALESCE(c.Name, 'Nezaradené') as CategoryName,
         COALESCE(c.Icon, '📦') as CategoryIcon,
         COALESCE(a.AccountName, 'Nepriradený') as AccountName
@@ -880,6 +882,8 @@ def gpt_search_transactions():
                 "Currency": tx.get('Currency') or tx.get('currency'),
                 "MerchantName": merchant,
                 "Description": tx.get('Description') or tx.get('description'),
+                "RecipientInfo": tx.get('RecipientInfo') or tx.get('recipientinfo'),
+                "CounterpartyPurpose": tx.get('CounterpartyPurpose') or tx.get('counterpartypurpose'),
                 "CategoryName": tx.get('CategoryName') or tx.get('categoryname'),
                 "CategoryIcon": tx.get('CategoryIcon') or tx.get('categoryicon'),
                 "AccountName": tx.get('AccountName') or tx.get('accountname')

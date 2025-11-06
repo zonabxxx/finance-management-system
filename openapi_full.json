@@ -121,7 +121,9 @@
                           "Amount": {"type": "number", "example": -15.50},
                           "Currency": {"type": "string", "example": "EUR"},
                           "MerchantName": {"type": "string", "example": "BILLA 122"},
-                          "Description": {"type": "string"},
+                          "Description": {"type": "string", "description": "Popis transakcie z B-mailu"},
+                          "RecipientInfo": {"type": "string", "description": "Informácia pre príjemcu (napr. 'Adam Martinkovych 4.A')", "example": "Adam Martinkovych 4.A"},
+                          "CounterpartyPurpose": {"type": "string", "description": "Účel protistrany z B-mailu"},
                           "CategoryName": {"type": "string", "example": "Nezaradené"},
                           "CategoryIcon": {"type": "string"},
                           "AccountName": {"type": "string"}
