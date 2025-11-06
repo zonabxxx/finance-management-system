@@ -1333,20 +1333,28 @@ def receive_email():
         desc_match = re.search(r'Popis transakcie:\s*(.+?)(?:\n|$)', email_body)
         description = desc_match.group(1).strip() if desc_match else ''
         
-        # 🆕 Účel protistrany (dôležité pre AI kategorizáciu!)
-        purpose_match = re.search(r'Ucel protistrany:\s*(.+?)(?:\n|$)', email_body)
-        counterparty_purpose = purpose_match.group(1).strip() if purpose_match else ''
+        # Extrahovanie obchodníka z B-mailu (Tatra banka používa rôzne názvy polí)
+        counterparty_name = None
         
-        # 🆕 Informácia pre príjemcu (môže obsahovať dôležité info)
-        recipient_info_match = re.search(r'Informacia pre prijemcu:\s*(.+?)(?:\n|$)', email_body)
-        recipient_info = recipient_info_match.group(1).strip() if recipient_info_match else ''
+        # Variant 1: "Ucet protistrany:" (účet protistrany - názov obchodníka/prijemcu)
+        ucet_match = re.search(r'Ucet protistrany:\s*(.+?)(?:\n|$)', email_body, re.IGNORECASE)
+        if ucet_match:
+            counterparty_name = ucet_match.group(1).strip()
         
-        # Obchodník - použiť presné údaje z B-mailu
-        if counterparty_purpose:
-            # ✅ "Účel protistrany" obsahuje presný názov obchodníka (napr. "BILLA 135", "Tesco Bratislava")
+        # Variant 2: "Ucel protistrany:" (účel - dôvod platby)
+        ucel_match = re.search(r'Ucel protistrany:\s*(.+?)(?:\n|$)', email_body, re.IGNORECASE)
+        counterparty_purpose = ucel_match.group(1).strip() if ucel_match else ''
+        
+        # Variant 3: "Informacia pre prijemcu:" (dodatočné info)
+        info_match = re.search(r'Informacia pre prijemcu:\s*(.+?)(?:\n|$)', email_body, re.IGNORECASE)
+        recipient_info = info_match.group(1).strip() if info_match else ''
+        
+        # Obchodník - použiť presné údaje z B-mailu (priorita: názov účtu > účel > description)
+        if counterparty_name:
+            merchant = counterparty_name
+        elif counterparty_purpose:
             merchant = counterparty_purpose
         else:
-            # Ak nie je "Účel protistrany", použi Description (napr. prevody)
             merchant = description or 'Unknown'
         
         # Payment method
@@ -1359,6 +1367,8 @@ def receive_email():
         
         print(f"   💰 Amount: {amount} EUR")
         print(f"   🏪 Merchant: {merchant}")
+        if counterparty_name:
+            print(f"   🏢 Counterparty: {counterparty_name}")
         if counterparty_purpose:
             print(f"   🎯 Purpose: {counterparty_purpose}")
         if recipient_info:
