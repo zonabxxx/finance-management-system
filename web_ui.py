@@ -1341,21 +1341,21 @@ def receive_email():
         recipient_info_match = re.search(r'Informacia pre prijemcu:\s*(.+?)(?:\n|$)', email_body)
         recipient_info = recipient_info_match.group(1).strip() if recipient_info_match else ''
         
-        # Obchodník
-        merchant = 'Unknown'
-        payment_method = 'Other'
+        # Obchodník - použiť presné údaje z B-mailu
+        if counterparty_purpose:
+            # ✅ "Účel protistrany" obsahuje presný názov obchodníka (napr. "BILLA 135", "Tesco Bratislava")
+            merchant = counterparty_purpose
+        else:
+            # Ak nie je "Účel protistrany", použi Description (napr. prevody)
+            merchant = description or 'Unknown'
         
+        # Payment method
         if 'Platba kartou' in description:
             payment_method = 'Card'
-            merchant_match = re.search(r',\s*([A-Z0-9\.\-]+)', description)
-            if merchant_match:
-                merchant_raw = merchant_match.group(1).strip('.')
-                merchant = re.sub(r'\.?[A-Z]{3}\d+$', '', merchant_raw) or merchant_raw
         elif 'Prevod' in description or 'Prikaz' in description:
             payment_method = 'Transfer'
-            merchant = description
         else:
-            merchant = description
+            payment_method = 'Other'
         
         print(f"   💰 Amount: {amount} EUR")
         print(f"   🏪 Merchant: {merchant}")
