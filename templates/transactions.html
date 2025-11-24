@@ -220,7 +220,15 @@
                     <option value="">Všetky kategórie</option>
                     <!-- Dynamicky načítané kategórie -->
                 </select>
+                <input type="date" id="filter-date-from" placeholder="Od dátumu">
+                <input type="date" id="filter-date-to" placeholder="Do dátumu">
+                <select id="filter-type">
+                    <option value="">Všetky typy</option>
+                    <option value="income">Len príjmy</option>
+                    <option value="expense">Len výdavky</option>
+                </select>
                 <button onclick="loadTransactions()">Filtrovať</button>
+                <button onclick="clearFilters()">🗑️ Vymazať</button>
                 <button onclick="exportCSV()">📥 Export CSV</button>
             </div>
 
@@ -289,6 +297,9 @@
                 // Získaj filter hodnoty
                 const searchMerchant = document.getElementById('search-merchant').value.trim();
                 const filterCategory = document.getElementById('filter-category').value;
+                const filterDateFrom = document.getElementById('filter-date-from').value;
+                const filterDateTo = document.getElementById('filter-date-to').value;
+                const filterType = document.getElementById('filter-type').value;
                 
                 // Postav URL s parametrami
                 let url = `/api/transactions/list?limit=${limit}&offset=${offset}`;
@@ -297,6 +308,15 @@
                 }
                 if (filterCategory) {
                     url += `&category=${encodeURIComponent(filterCategory)}`;
+                }
+                if (filterDateFrom) {
+                    url += `&date_from=${filterDateFrom}`;
+                }
+                if (filterDateTo) {
+                    url += `&date_to=${filterDateTo}`;
+                }
+                if (filterType) {
+                    url += `&type=${filterType}`;
                 }
                 
                 const response = await fetch(url);
@@ -430,6 +450,16 @@
                 currentPage--;
                 loadTransactions();
             }
+        }
+
+        function clearFilters() {
+            document.getElementById('search-merchant').value = '';
+            document.getElementById('filter-category').value = '';
+            document.getElementById('filter-date-from').value = '';
+            document.getElementById('filter-date-to').value = '';
+            document.getElementById('filter-type').value = '';
+            currentPage = 0;
+            loadTransactions();
         }
 
         function exportCSV() {

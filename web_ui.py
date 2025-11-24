@@ -493,6 +493,9 @@ def transactions_list():
     offset = request.args.get('offset', 0)
     search = request.args.get('search', '')
     category = request.args.get('category', '')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
+    trans_type = request.args.get('type', '')  # income, expense
     
     # Základný SQL
     where_conditions = []
@@ -500,8 +503,21 @@ def transactions_list():
     if search:
         where_conditions.append(f"t.MerchantName LIKE '%{search}%'")
     
-    if category:
-        where_conditions.append(f"c.Name = '{category}'")
+    if category and category != 'Všetky kategórie':
+        # Escape single quotes
+        category_esc = category.replace("'", "''")
+        where_conditions.append(f"c.Name = '{category_esc}'")
+    
+    if date_from:
+        where_conditions.append(f"DATE(t.TransactionDate) >= '{date_from}'")
+    
+    if date_to:
+        where_conditions.append(f"DATE(t.TransactionDate) <= '{date_to}'")
+    
+    if trans_type == 'income':
+        where_conditions.append(f"t.Amount > 0")
+    elif trans_type == 'expense':
+        where_conditions.append(f"t.Amount < 0")
     
     where_clause = ""
     if where_conditions:
