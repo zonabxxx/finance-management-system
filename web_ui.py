@@ -506,7 +506,11 @@ def transactions_list():
     if category and category != 'Všetky kategórie':
         # Escape single quotes
         category_esc = category.replace("'", "''")
-        where_conditions.append(f"c.Name = '{category_esc}'")
+        # Špeciálny prípad pre "Nezaradené" - transakcie bez CategoryID
+        if category_esc == 'Nezaradené':
+            where_conditions.append(f"t.CategoryID IS NULL")
+        else:
+            where_conditions.append(f"c.Name = '{category_esc}'")
     
     if date_from:
         where_conditions.append(f"DATE(t.TransactionDate) >= '{date_from}'")

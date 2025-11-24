@@ -273,6 +273,14 @@
                 // Naplň dropdown
                 const select = document.getElementById('filter-category');
                 select.innerHTML = '<option value="">Všetky kategórie</option>';
+                
+                // Pridaj "Nezaradené" ako prvú možnosť
+                const uncategorizedOption = document.createElement('option');
+                uncategorizedOption.value = 'Nezaradené';
+                uncategorizedOption.textContent = '📦 Nezaradené';
+                select.appendChild(uncategorizedOption);
+                
+                // Pridaj ostatné kategórie
                 allCategories.forEach(cat => {
                     const id = cat.CategoryID || cat.CATEGORYID;
                     const name = cat.Name || cat.NAME;
