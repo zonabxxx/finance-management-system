@@ -272,25 +272,47 @@
                     document.getElementById('avg-expense').textContent = parseFloat(avgExpense).toFixed(2) + ' €';
                 }
 
-                // Top merchants
-                if (statsData.top_merchants && statsData.top_merchants.length > 0) {
+                // Posledné transakcie
+                const txResponse = await fetch('/api/transactions/list?limit=5');
+                const txData = await txResponse.json();
+                
+                if (txData.transactions && txData.transactions.length > 0) {
                     const transactionsList = document.getElementById('transactions-list');
                     transactionsList.innerHTML = '';
                     
-                    statsData.top_merchants.slice(0, 5).forEach(merchant => {
-                        const name = merchant.MerchantName || 'Neznámy';
-                        const total = parseFloat(merchant.total || 0);
-                        const count = merchant.count || 0;
+                    txData.transactions.forEach(tx => {
+                        const extractValue = (obj, ...keys) => {
+                            for (let key of keys) {
+                                let val = obj[key];
+                                if (val && typeof val === 'object' && 'value' in val) {
+                                    val = val.value;
+                                }
+                                if (val !== undefined && val !== null) return val;
+                            }
+                            return null;
+                        };
+                        
+                        const merchant = extractValue(tx, 'MerchantName', 'merchantname') || 'Neznámy';
+                        const amount = parseFloat(extractValue(tx, 'Amount', 'amount') || 0);
+                        const date = extractValue(tx, 'TransactionDate', 'transactiondate') || '';
+                        const category = extractValue(tx, 'CategoryName', 'categoryname') || 'Nezaradené';
+                        const categoryIcon = extractValue(tx, 'CategoryIcon', 'categoryicon') || '📦';
+                        
+                        const dateFormatted = date ? new Date(date).toLocaleDateString('sk-SK', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric'
+                        }) : '';
                         
                         const item = document.createElement('div');
                         item.className = 'transaction-item';
                         item.innerHTML = `
                             <div class="transaction-info">
-                                <div class="transaction-merchant">${name}</div>
-                                <div class="transaction-date">${count}x transakcií</div>
+                                <div class="transaction-merchant">${merchant}</div>
+                                <div class="transaction-date">${categoryIcon} ${category} · ${dateFormatted}</div>
                             </div>
-                            <div class="transaction-amount negative">
-                                ${total.toFixed(2)} €
+                            <div class="transaction-amount ${amount < 0 ? 'negative' : 'positive'}">
+                                ${amount > 0 ? '+' : ''}${amount.toFixed(2)} €
                             </div>
                         `;
                         transactionsList.appendChild(item);
