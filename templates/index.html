@@ -379,7 +379,8 @@
             const values = [];
             const colors = [];
 
-            data.slice(0, 5).forEach(row => {
+            // Zobraziť všetky kategórie (nie len top 5)
+            data.forEach(row => {
                 // API vracia: category, amount, icon, color
                 // Ošetrenie pre Turso HTTP API formát (môže vrátiť {type: "null"})
                 const icon = (row.icon && typeof row.icon === 'string') ? row.icon : '';
@@ -406,6 +407,17 @@
                     plugins: {
                         legend: {
                             position: 'bottom',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${label}: ${value.toFixed(2)} € (${percentage}%)`;
+                                }
+                            }
                         }
                     }
                 }
