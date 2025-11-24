@@ -1320,7 +1320,7 @@ def receive_email():
         # Parsovanie B-mail transakcie
         main_match = re.search(
             r'(\d{1,2}\.\d{1,2}\.\d{4})\s+(\d{1,2}:\d{2})\s+bol zostatok.*?'
-            r'(SK\d+)\s+(znizeny|zvyseny)\s+o\s+([\d,]+)\s*EUR',
+            r'(SK\d+)\s+(znizeny|zvyseny)\s+o\s+([\d\s,]+)\s*EUR',
             email_body
         )
         
@@ -1332,7 +1332,7 @@ def receive_email():
         date_str = f"{main_match.group(1)} {main_match.group(2)}"
         trans_date = datetime.strptime(date_str, "%d.%m.%Y %H:%M")
         iban = main_match.group(3)
-        amount_str = main_match.group(5).replace(',', '.')
+        amount_str = main_match.group(5).replace(',', '.').replace(' ', '')  # Odstráň medzery aj čiarky
         amount = float(amount_str)
         if main_match.group(4) == 'znizeny':
             amount = -amount
